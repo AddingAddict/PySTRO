@@ -67,12 +67,12 @@ class MCBDriver:
         micro_err = c_int()
         error = self.driver.MIOGetLastError(byref(macro_err), byref(micro_err))
         
-        err_msg = error_codes[error]
-        mac_msg = macro_codes[macro_err.value]
+        err_msg = self.error_codes[error]
+        mac_msg = self.macro_codes[macro_err.value]
         if macro_err.value == 129 or macro_err.value == 131:
-            mic_msg = macro_error_codes[micr_erro.value]
+            mic_msg = self.macro_error_codes[micr_erro.value]
         else:
-            mic_msg = micro_codes[micro_err.value]
+            mic_msg = self.micro_codes[micro_err.value]
         return err_msg, mac_msg, mic_msg
         
     def open_detector(self, ndet):
@@ -88,7 +88,7 @@ class MCBDriver:
         resp = create_string_buffer(max_resp)
         assert self.driver.MIOComm(hdet, cmd.encode(), '', '', max_resp,\
             resp, 0) == 1, 'Command Failed'
-        return resp.value
+        return resp.value.decode()
         
     def get_config_max(self):
         det_max = c_int32()
@@ -102,7 +102,7 @@ class MCBDriver:
         id = c_int()
         assert self.driver.MIOGetConfigName(ndet, '', name_max, name,\
             byref(id), 0) == 1, 'Get Config Name Failed'
-        return name.value, id.value
+        return name.value.decode(), id.value
         
     def get_data(self, hdet, start_chan=0, num_chans=2048):
         assert start_chan + num_chans <= 2048, 'Invalid Parameters in Get Data'
