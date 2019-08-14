@@ -56,6 +56,7 @@ class MCBDriver:
     }
 
     def __init__(self):
+        #### the driver file mcbcio32.dll is what makes this program windows only ####
         self.driver = windll.LoadLibrary(r'C:\windows\system32\mcbcio32.dll')
         assert self.driver.MIOStartup() == 1, 'Startup Failed'
         
