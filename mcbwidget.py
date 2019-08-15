@@ -24,6 +24,8 @@ class MCBWidget(QtWidgets.QWidget):
         self.driver = mcb_driver
         self.hdet = self.driver.open_detector(ndet)
         self.name, self.id = self.driver.get_config_name(ndet)
+        self.chan_max = self.driver.get_det_length(self.hdet)
+        self.chan_min = 256
         self.active = self.is_active()
         
         # create label displaying MCB ID and name
@@ -32,44 +34,45 @@ class MCBWidget(QtWidgets.QWidget):
         
         # initialize sections of MCBWidget
         self.init_plotwidget()
-        self.init_btngrp()
-        self.init_timegrp()
-        self.init_presetgrp()
-        self.init_adcgrp()
-        self.init_plotgrp()
+        self.init_data_grp()
+        self.init_time_grp()
+        self.init_preset_grp()
+        self.init_adc_grp()
+        self.init_plot_grp()
         
-        # layout widgets
-        self.leftlayout = QtWidgets.QVBoxLayout()
-        self.midlayout = QtWidgets.QVBoxLayout()
-        self.rightlayout = QtWidgets.QVBoxLayout()
+        # _layout widgets
+        self.left_layout = QtWidgets.QVBoxLayout()
+        self.mid_layout = QtWidgets.QVBoxLayout()
+        self.right_layout = QtWidgets.QVBoxLayout()
         
-        self.layout.addLayout(self.leftlayout, 20)
-        self.layout.addLayout(self.midlayout, 1)
-        self.layout.addLayout(self.rightlayout, 1)
+        self.layout.addLayout(self.left_layout, 20)
+        self.layout.addLayout(self.mid_layout, 1)
+        self.layout.addLayout(self.right_layout, 1)
         
-        self.leftlayout.addWidget(self.label)
-        self.leftlayout.addWidget(self.plot)
+        self.left_layout.addWidget(self.label)
+        self.left_layout.addWidget(self.plot)
         
-        self.midlayout.addWidget(self.btngrp)
-        self.midlayout.addWidget(self.timegrp)
-        self.midlayout.addWidget(self.presetgrp)
-        self.midlayout.addWidget(QtWidgets.QWidget(), 10)
+        self.mid_layout.addWidget(self.data_grp)
+        self.mid_layout.addWidget(self.time_grp)
+        self.mid_layout.addWidget(self.preset_grp)
+        self.mid_layout.addWidget(QtWidgets.QWidget(), 10)
         
-        self.rightlayout.addWidget(self.adcgrp)
-        self.rightlayout.addWidget(self.plotgrp)
-        self.rightlayout.addWidget(QtWidgets.QWidget(), 10)
+        self.right_layout.addWidget(self.adc_grp)
+        self.right_layout.addWidget(self.plot_grp)
+        self.right_layout.addWidget(QtWidgets.QWidget(), 10)
         
         # create QTimer to update plot
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update)
-        self.timer.start(250)
+        self.timer.start(200)
         
     def init_plotwidget(self):
         self.counts = self.driver.get_data(self.hdet)
+        self.chans = self.chan_max
         
         # create plot window
         self.plot = pg.PlotWidget()
-        self.plot.setXRange(0, 2047, padding=0)
+        self.plot.setXRange(0, self.chans, padding=0)
         self.plot.setYRange(0, 1<<int(self.counts.max()).bit_length(),\
             padding=0)
         self.plot.hideAxis('bottom')
@@ -77,351 +80,385 @@ class MCBWidget(QtWidgets.QWidget):
         self.plot.setMinimumWidth(1024)
         
         # create initial histogram
-        self.chans = 2048
+        self.chans = self.chan_max
         self.hist = pg.BarGraphItem(x=np.arange(self.chans),\
-            height=self.counts, width=1, pen='b')
+            height=self.counts, width=1, pen='b', brush='b')
         self.plot.addItem(self.hist)
         
-    def init_btngrp(self):
-        # create a group for control buttons
-        self.btngrp = QtWidgets.QGroupBox('Data Acquisition')
-        self.btnlayout = QtWidgets.QHBoxLayout()
-        self.btngrp.setLayout(self.btnlayout)
+    def init_data_grp(self):
+        # create a group for data acq buttons
+        self.data_grp = QtWidgets.QGroupBox('Data Acquisition')
+        self.data_layout = QtWidgets.QHBoxLayout()
+        self.data_grp.setLayout(self.data_layout)
         
-        # create control buttons
-        self.startbtn = QtWidgets.QPushButton('')
-        self.stopbtn = QtWidgets.QPushButton('')
-        self.clearbtn = QtWidgets.QPushButton('')
+        # create data acq buttons
+        self.start_btn = QtWidgets.QPushButton('')
+        self.stop_btn = QtWidgets.QPushButton('')
+        self.clear_btn = QtWidgets.QPushButton('')
         
-        # add icons to control buttons
-        self.startbtn.setIcon(QtGui.QIcon('icons/start.png'))
-        self.stopbtn.setIcon(QtGui.QIcon('icons/stop.png'))
-        self.clearbtn.setIcon(QtGui.QIcon('icons/clear.png'))
+        # add icons to data acq buttons
+        self.start_btn.setIcon(QtGui.QIcon('icons/start.png'))
+        self.stop_btn.setIcon(QtGui.QIcon('icons/stop.png'))
+        self.clear_btn.setIcon(QtGui.QIcon('icons/clear.png'))
         
-        # add response functions for buttons
-        self.startbtn.clicked.connect(self.start)
-        self.stopbtn.clicked.connect(self.stop)
-        self.clearbtn.clicked.connect(self.clear)
+        # add response functions for data acq buttons
+        self.start_btn.clicked.connect(self.start)
+        self.stop_btn.clicked.connect(self.stop)
+        self.clear_btn.clicked.connect(self.clear)
         
-        # layout control buttons
-        self.btnlayout.addWidget(self.startbtn)
-        self.btnlayout.addWidget(self.stopbtn)
-        self.btnlayout.addWidget(self.clearbtn)
+        # _layout data acq buttons
+        self.data_layout.addWidget(self.start_btn)
+        self.data_layout.addWidget(self.stop_btn)
+        self.data_layout.addWidget(self.clear_btn)
         
         # enable/disable buttons
         if self.active:
-            self.startbtn.setEnabled(False)
-            self.stopbtn.setEnabled(True)
+            self.start_btn.setEnabled(False)
+            self.stop_btn.setEnabled(True)
         else:
-            self.startbtn.setEnabled(True)
-            self.stopbtn.setEnabled(False)
+            self.start_btn.setEnabled(True)
+            self.stop_btn.setEnabled(False)
         
-    def init_timegrp(self):
+    def init_time_grp(self):
         self.real = self.get_real()
-        self.realstr = '{0:.2f}'.format(self.real / 1000)
+        self.real_str = '{0:.2f}'.format(self.real / 1000)
         self.live = self.get_live()
-        self.livestr = '{0:.2f}'.format(self.live / 1000)
+        self.live_str = '{0:.2f}'.format(self.live / 1000)
         self.dead = 0
-        self.deadstr = '%'
+        self.dead_str = '%'
         self.dreals = deque([0]*4)
         self.dlives = deque([0]*4)
         
         # create a group for timing information
-        self.timegrp = QtWidgets.QGroupBox('Timing')
-        self.timelayout = QtWidgets.QGridLayout()
-        self.timegrp.setLayout(self.timelayout)
+        self.time_grp = QtWidgets.QGroupBox('Timing')
+        self.time_layout = QtWidgets.QGridLayout()
+        self.time_grp.setLayout(self.time_layout)
         
         # create timing labels
-        self.reallbl = QtWidgets.QLabel(self.realstr)
-        self.livelbl = QtWidgets.QLabel(self.livestr)
-        self.deadlbl = QtWidgets.QLabel(self.deadstr)
-        self.reallbl.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-        self.livelbl.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-        self.deadlbl.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-        self.reallbl.setMinimumWidth(50)
-        self.livelbl.setMinimumWidth(50)
-        self.deadlbl.setMinimumWidth(50)
+        self.real_lbl = QtWidgets.QLabel(self.real_str)
+        self.live_lbl = QtWidgets.QLabel(self.live_str)
+        self.dead_lbl = QtWidgets.QLabel(self.dead_str)
+        self.real_lbl.setAlignment(QtCore.Qt.AlignRight)
+        self.live_lbl.setAlignment(QtCore.Qt.AlignRight)
+        self.dead_lbl.setAlignment(QtCore.Qt.AlignRight)
+        self.real_lbl.setMinimumWidth(50)
+        self.live_lbl.setMinimumWidth(50)
+        self.dead_lbl.setMinimumWidth(50)
         
-        # layout timing labels
-        self.timelayout.addWidget(QtWidgets.QLabel('Real: '), 0, 0)
-        self.timelayout.addWidget(QtWidgets.QLabel('Live: '), 1, 0)
-        self.timelayout.addWidget(QtWidgets.QLabel('Dead: '), 2, 0)
-        self.timelayout.addWidget(self.reallbl, 0, 1)
-        self.timelayout.addWidget(self.livelbl, 1, 1)
-        self.timelayout.addWidget(self.deadlbl, 2, 1)
+        # _layout timing labels
+        self.time_layout.addWidget(QtWidgets.QLabel('Real: '), 0, 0)
+        self.time_layout.addWidget(QtWidgets.QLabel('Live: '), 1, 0)
+        self.time_layout.addWidget(QtWidgets.QLabel('Dead: '), 2, 0)
+        self.time_layout.addWidget(self.real_lbl, 0, 1)
+        self.time_layout.addWidget(self.live_lbl, 1, 1)
+        self.time_layout.addWidget(self.dead_lbl, 2, 1)
         
-    def init_presetgrp(self):
+    def init_preset_grp(self):
         self.rpre = self.get_real_preset()
         if self.rpre > 0:
-            self.rprestr = '{0:.2f}'.format(self.rpre / 1000)
+            self.rpre_str = '{0:.2f}'.format(self.rpre / 1000)
         else:
-            self.rprestr = ''
+            self.rpre_str = ''
         self.lpre = self.get_live_preset()
         if self.lpre > 0:
-            self.lprestr = '{0:.2f}'.format(self.lpre / 1000)
+            self.lpre_str = '{0:.2f}'.format(self.lpre / 1000)
         else:
-            self.lprestr = ''
+            self.lpre_str = ''
             
         # create a group for preset limits
-        self.presetgrp = QtWidgets.QGroupBox('Preset Limits')
-        self.presetlayout = QtWidgets.QGridLayout()
-        self.presetgrp.setLayout(self.presetlayout)
+        self.preset_grp = QtWidgets.QGroupBox('Preset Limits')
+        self.preset_layout = QtWidgets.QGridLayout()
+        self.preset_grp.setLayout(self.preset_layout)
         
         # create preset textboxes
-        self.rpretxt = QtWidgets.QLineEdit(self.rprestr)
-        self.lpretxt = QtWidgets.QLineEdit(self.lprestr)
-        self.rpretxt.setValidator(self.float_only)
-        self.lpretxt.setValidator(self.float_only)
-        self.rpretxt.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-        self.lpretxt.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-        self.rpretxt.setMinimumWidth(50)
-        self.lpretxt.setMinimumWidth(50)
+        self.rpre_txt = QtWidgets.QLineEdit(self.rpre_str)
+        self.lpre_txt = QtWidgets.QLineEdit(self.lpre_str)
+        self.rpre_txt.setValidator(self.float_only)
+        self.lpre_txt.setValidator(self.float_only)
+        self.rpre_txt.setAlignment(QtCore.Qt.AlignRight)
+        self.lpre_txt.setAlignment(QtCore.Qt.AlignRight)
+        self.rpre_txt.setMinimumWidth(50)
+        self.lpre_txt.setMinimumWidth(50)
         
-        # layout preset widgets
-        self.presetlayout.addWidget(QtWidgets.QLabel('Real: '), 0, 0)
-        self.presetlayout.addWidget(QtWidgets.QLabel('Live: '), 1, 0)
-        self.presetlayout.addWidget(self.rpretxt, 0, 1)
-        self.presetlayout.addWidget(self.lpretxt, 1, 1)
+        # add response functions to preset textboxes
+        def rpre_changed():
+            if not self.active:
+                self.rpre_str = self.rpre_txt.text()
+                if self.rpre_str == '':
+                    self.rpre_txt.setStyleSheet(\
+                        'QLineEdit { background-color: #ffffff }')
+                    self.rpre = 0
+                    self.set_real_preset(self.rpre)
+                elif self.rpre_str == '-' or float(self.rpre_str) < 0:
+                    self.rpre_txt.setStyleSheet(\
+                        'QLineEdit { background-color: #f6989d }')
+                else:
+                    self.rpre_txt.setStyleSheet(\
+                        'QLineEdit { background-color: #ffffff }')
+                    self.rpre = int(float(self.rpre_str) * 1000)
+                    self.set_real_preset(self.rpre)
+        def lpre_changed():
+            if not self.active:
+                self.lpre_str = self.lpre_txt.text()
+                if self.lpre_str == '':
+                    self.lpre_txt.setStyleSheet(\
+                        'QLineEdit { background-color: #ffffff }')
+                    self.lpre = 0
+                    self.set_live_preset(self.lpre)
+                elif self.lpre_str == '-' or float(self.lpre_str) < 0:
+                    self.lpre_txt.setStyleSheet(\
+                        'QLineEdit { background-color: #f6989d }')
+                else:
+                    self.lpre_txt.setStyleSheet(\
+                        'QLineEdit { background-color: #ffffff }')
+                    self.lpre = int(float(self.lpre_str) * 1000)
+                    self.set_live_preset(self.lpre)
+        self.rpre_txt.textChanged.connect(rpre_changed)
+        self.lpre_txt.textChanged.connect(lpre_changed)
+        
+        # _layout preset widgets
+        self.preset_layout.addWidget(QtWidgets.QLabel('Real: '), 0, 0)
+        self.preset_layout.addWidget(QtWidgets.QLabel('Live: '), 1, 0)
+        self.preset_layout.addWidget(self.rpre_txt, 0, 1)
+        self.preset_layout.addWidget(self.lpre_txt, 1, 1)
         
         # enable/disable presets
         if self.active:
-            self.rpretxt.setReadOnly(True)
-            self.lpretxt.setReadOnly(True)
+            self.rpre_txt.setReadOnly(True)
+            self.lpre_txt.setReadOnly(True)
         else:
-            self.rpretxt.setReadOnly(False)
-            self.lpretxt.setReadOnly(False)
+            self.rpre_txt.setReadOnly(False)
+            self.lpre_txt.setReadOnly(False)
         
-    def init_adcgrp(self):
+    def init_adc_grp(self):
         self.gate = self.get_gate()
         self.lld = self.get_lld()
         self.uld = self.get_uld()
-        self.lldstr = str(self.lld)
-        self.uldstr = str(self.uld)
+        self.lld_str = str(self.lld)
+        self.uld_str = str(self.uld)
         
         # create a group for ADC settings
-        self.adcgrp = QtWidgets.QGroupBox('ADC Settings')
-        self.adclayout = QtWidgets.QGridLayout()
-        self.adcgrp.setLayout(self.adclayout)
+        self.adc_grp = QtWidgets.QGroupBox('ADC Settings')
+        self.adc_layout = QtWidgets.QGridLayout()
+        self.adc_grp.setLayout(self.adc_layout)
         
         # create gate dropdown menu
-        self.gatebox = QtWidgets.QComboBox()
+        self.gate_box = QtWidgets.QComboBox()
         for option in ['Off', 'Coincidence', 'Anticoincidence']:
-            self.gatebox.addItem(option)
-        self.gatebox.setCurrentIndex(self.gate)
+            self.gate_box.addItem(option)
+        self.gate_box.setCurrentIndex(self.gate)
+        
+        # add response function for gate menu
+        def gate_change():
+            self.gate = self.gate_box.currentIndex()
+            self.set_gate(self.gate)
+        self.gate_box.currentIndexChanged.connect(gate_change)
         
         # create discriminator textboxes
-        self.lldtxt = QtWidgets.QLineEdit(self.lldstr)
-        self.uldtxt = QtWidgets.QLineEdit(self.uldstr)
-        self.lldtxt.setValidator(self.int_only)
-        self.uldtxt.setValidator(self.int_only)
-        self.lldtxt.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-        self.uldtxt.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-        self.lldtxt.setMinimumWidth(30)
-        self.uldtxt.setMinimumWidth(30)
+        self.lld_txt = QtWidgets.QLineEdit(self.lld_str)
+        self.uld_txt = QtWidgets.QLineEdit(self.uld_str)
+        self.lld_txt.setValidator(self.int_only)
+        self.uld_txt.setValidator(self.int_only)
+        self.lld_txt.setAlignment(QtCore.Qt.AlignRight)
+        self.uld_txt.setAlignment(QtCore.Qt.AlignRight)
+        self.lld_txt.setMinimumWidth(5)
+        self.uld_txt.setMinimumWidth(5)
         
-        # layout ADC widgets
-        self.adclayout.addWidget(QtWidgets.QLabel('Gate: '), 0, 0, 1, 2)
-        self.adclayout.addWidget(QtWidgets.QLabel('Lower Disc: '), 2, 0)
-        self.adclayout.addWidget(QtWidgets.QLabel('Upper Disc: '), 3, 0)
-        self.adclayout.addWidget(self.gatebox, 1, 0, 1, 2)
-        self.adclayout.addWidget(self.lldtxt, 2, 1)
-        self.adclayout.addWidget(self.uldtxt, 3, 1)
+        # add response functions for discriminator textboxes
+        def lld_change():
+            self.lld_str = self.lld_txt.text()
+            if self.lld_str == '':
+                self.lld_txt.setStyleSheet(\
+                    'QLineEdit { background-color: #ffffff }')
+                self.lld = 0
+                self.set_lld(self.lld)
+            elif self.lld_str == '-' or int(self.lld_str) < 0\
+                    or int(self.lld_str) > self.chan_max:
+                self.lld_txt.setStyleSheet(\
+                    'QLineEdit { background-color: #f6989d }')
+            else:
+                self.lld_txt.setStyleSheet(\
+                    'QLineEdit { background-color: #ffffff }')
+                self.lld = int(self.lld_str)
+                self.set_lld(self.lld)
+        def uld_change():
+            self.uld_str = self.uld_txt.text()
+            if self.uld_str == '':
+                self.uld_txt.setStyleSheet(\
+                    'QLineEdit { background-color: #ffffff }')
+                self.uld = 0
+                self.set_uld(self.uld)
+            elif self.uld_str == '-' or int(self.uld_str) < 0\
+                    or int(self.uld_str) > self.chan_max:
+                self.uld_txt.setStyleSheet(\
+                    'QLineEdit { background-color: #f6989d }')
+            else:
+                self.uld_txt.setStyleSheet(\
+                    'QLineEdit { background-color: #ffffff }')
+                self.uld = int(self.uld_str)
+                self.set_uld(self.uld)
+        self.lld_txt.textChanged.connect(lld_change)
+        self.uld_txt.textChanged.connect(uld_change)
         
-    def init_plotgrp(self):
+        # _layout ADC widgets
+        self.adc_layout.addWidget(QtWidgets.QLabel('Gate: '), 0, 0, 1, 2)
+        self.adc_layout.addWidget(QtWidgets.QLabel('Lower Disc: '), 2, 0)
+        self.adc_layout.addWidget(QtWidgets.QLabel('Upper Disc: '), 3, 0)
+        self.adc_layout.addWidget(self.gate_box, 1, 0, 1, 2)
+        self.adc_layout.addWidget(self.lld_txt, 2, 1)
+        self.adc_layout.addWidget(self.uld_txt, 3, 1)
+        
+    def init_plot_grp(self):
         self.mode = 'Auto'
         
         # create a group for plot settings
-        self.plotgrp = QtWidgets.QGroupBox('Plot Settings')
-        self.plotlayout = QtWidgets.QGridLayout()
-        self.plotgrp.setLayout(self.plotlayout)
+        self.plot_grp = QtWidgets.QGroupBox('Plot Settings')
+        self.plot_layout = QtWidgets.QGridLayout()
+        self.plot_grp.setLayout(self.plot_layout)
         
         # create plot mode buttons
-        self.logbtn = QtWidgets.QPushButton('Log')
-        self.autobtn = QtWidgets.QPushButton('Auto')
-        self.logbtn.setMinimumWidth(5)
-        self.autobtn.setMinimumWidth(5)
-        self.autobtn.setEnabled(False)
+        self.log_btn = QtWidgets.QPushButton('Log')
+        self.auto_btn = QtWidgets.QPushButton('Auto')
+        self.log_btn.setMinimumWidth(20)
+        self.auto_btn.setMinimumWidth(20)
+        self.auto_btn.setEnabled(False)
         
         # add response functions for buttons
         def log_click():
             self.mode = 'Log'
-            self.logbtn.setEnabled(False)
-            self.autobtn.setEnabled(True)
+            self.log_btn.setEnabled(False)
+            self.auto_btn.setEnabled(True)
             
             self.plot.setYRange(0, 31, padding=0)
-            logsafe = np.maximum(1, self.counts)
-            self.hist.setOpts(height=np.log2(logsafe))
+            logsafe = np.maximum(1, self.rebin)
+            self.hist.setOpts(x=np.arange(self.chans), height=np.log2(logsafe))
         def auto_click():
             self.mode = 'Auto'
-            self.logbtn.setEnabled(True)
-            self.autobtn.setEnabled(False)
+            self.log_btn.setEnabled(True)
+            self.auto_btn.setEnabled(False)
             
-            self.plot.setYRange(0, 1<<int(self.counts.max()).bit_length(),\
+            self.plot.setYRange(0, 1<<int(self.rebin.max()).bit_length(),\
                 padding=0)
-            self.hist.setOpts(height=self.counts)
-        self.logbtn.clicked.connect(log_click)
-        self.autobtn.clicked.connect(auto_click)
+            self.hist.setOpts(x=np.arange(self.chans), height=self.rebin)
+        self.log_btn.clicked.connect(log_click)
+        self.auto_btn.clicked.connect(auto_click)
         
-        # layout plot widgets
-        self.plotlayout.addWidget(QtWidgets.QLabel('Plot Mode: '), 0, 0, 1, 2)
-        self.plotlayout.addWidget(QtWidgets.QLabel('# Channels: '), 2, 0, 1, 2)
-        self.plotlayout.addWidget(self.logbtn, 1, 0)
-        self.plotlayout.addWidget(self.autobtn, 1, 1)
+        # create rebinning dropdown menu
+        self.chan_box = QtWidgets.QComboBox()
+        self.chan_box.setEditable(True)
+        self.chan_box.lineEdit().setReadOnly(True)
+        self.chan_box.lineEdit().setAlignment(QtCore.Qt.AlignRight)
+        chans = self.chan_max
+        n = 0
+        while chans >= self.chan_min:
+            self.chan_box.addItem(str(int(chans)))
+            self.chan_box.setItemData(n, QtCore.Qt.AlignRight,\
+                QtCore.Qt.TextAlignmentRole)
+            chans /= 2
+            n += 1
+            
+        # add response function for rebinning menu
+        def chan_change():
+            self.chans = int(self.chan_max / (1<<self.chan_box.currentIndex()))
+            
+            self.plot.setXRange(0, self.chans, padding=0)
+            self.rebin = self.counts.reshape((self.chans, -1)).sum(axis=1)
+            if self.mode == 'Log':
+                self.plot.setYRange(0, 31, padding=0)
+                logsafe = np.maximum(1, self.rebin)
+                self.hist.setOpts(x=np.arange(self.chans),\
+                    height=np.log2(logsafe))
+            else:
+                self.plot.setYRange(0, 1<<int(self.rebin.max()).bit_length(),\
+                    padding=0)
+                self.hist.setOpts(x=np.arange(self.chans), height=self.rebin)
+        self.chan_box.currentIndexChanged.connect(chan_change)
+        
+        # _layout plot widgets
+        self.plot_layout.addWidget(QtWidgets.QLabel('Plot Mode: '), 0, 0, 1, 2)
+        self.plot_layout.addWidget(QtWidgets.QLabel('Channels: '), 2, 0)
+        self.plot_layout.addWidget(self.log_btn, 1, 0)
+        self.plot_layout.addWidget(self.auto_btn, 1, 1)
+        self.plot_layout.addWidget(self.chan_box, 2, 1)
         
     def update(self):
         # update plot
         self.counts = self.driver.get_data(self.hdet)
+        self.rebin = self.counts.reshape((self.chans, -1)).sum(axis=1)
         
+        self.plot.setXRange(0, self.chans, padding=0)
         if self.mode == 'Log':
             self.plot.setYRange(0, 31, padding=0)
-            logsafe = np.maximum(1, self.counts)
-            self.hist.setOpts(height=np.log2(logsafe))
+            logsafe = np.maximum(1, self.rebin)
+            self.hist.setOpts(x=np.arange(self.chans), height=np.log2(logsafe))
         else:
-            self.plot.setYRange(0, 1<<int(self.counts.max()).bit_length(),\
+            self.plot.setYRange(0, 1<<int(self.rebin.max()).bit_length(),\
                 padding=0)
-            self.hist.setOpts(height=self.counts)
-            
-        # update timing
-        oldreal = self.real
-        oldlive = self.live
+            self.hist.setOpts(x=np.arange(self.chans), height=self.rebin)
         
-        self.real = self.get_real()
-        self.realstr = '{0:.2f}'.format(self.real / 1000)
-        self.live = self.get_live()
-        self.livestr = '{0:.2f}'.format(self.live / 1000)
-        
-        self.dreals.append(self.real - oldreal)
-        self.dreals.popleft()
-        dreal = sum(self.dreals)
-        self.dlives.append(self.live - oldlive)
-        self.dlives.popleft()
-        dlive = sum(self.dlives)
-        if dreal > dlive:
-            self.dead = (1 - dlive/dreal) * 100
-            self.deadstr = '{0:.2f} %'.format(self.dead)
-        else:
-            self.dead = 0
-            self.deadstr = '%'
-        
-        self.reallbl.setText(self.realstr)
-        self.livelbl.setText(self.livestr)
-        self.deadlbl.setText(self.deadstr)
-        
-        # enable/disable buttons and preset boxes
-        oldstate = self.active
+        # enable/disable buttons and preset _boxes
+        old_state = self.active
         self.active = self.is_active()
-        state_changed = (self.active != oldstate)
+        state_changed = (self.active != old_state)
         
         if state_changed:
             if self.active:
-                self.startbtn.setEnabled(False)
-                self.stopbtn.setEnabled(True)
+                self.start_btn.setEnabled(False)
+                self.stop_btn.setEnabled(True)
                 
-                self.rpretxt.setReadOnly(True)
-                self.lpretxt.setReadOnly(True)
+                self.rpre_txt.setReadOnly(True)
+                self.lpre_txt.setReadOnly(True)
             else:
-                self.startbtn.setEnabled(True)
-                self.stopbtn.setEnabled(False)
+                self.start_btn.setEnabled(True)
+                self.stop_btn.setEnabled(False)
                 
-                self.rpretxt.setReadOnly(False)
-                self.lpretxt.setReadOnly(False)
-                
-        # update presets if not active
-        if not self.active:
-            self.rprestr = self.rpretxt.text()
-            if self.rprestr == '':
-                self.rpretxt.setStyleSheet(\
-                    'QLineEdit { background-color: #ffffff }')
-                self.rpre = 0
-                self.set_real_preset(self.rpre)
-            elif self.rprestr == '-' or float(self.rprestr) < 0:
-                self.rpretxt.setStyleSheet(\
-                    'QLineEdit { background-color: #f6989d }')
-            else:
-                self.rpretxt.setStyleSheet(\
-                    'QLineEdit { background-color: #ffffff }')
-                self.rpre = int(float(self.rprestr) * 1000)
-                self.set_real_preset(self.rpre)
-                
-            self.lprestr = self.lpretxt.text()
-            if self.lprestr == '':
-                self.lpretxt.setStyleSheet(\
-                    'QLineEdit { background-color: #ffffff }')
-                self.lpre = 0
-                self.set_live_preset(self.lpre)
-            elif self.lprestr == '-' or float(self.lprestr) < 0:
-                self.lpretxt.setStyleSheet(\
-                    'QLineEdit { background-color: #f6989d }')
-            else:
-                self.lpretxt.setStyleSheet(\
-                    'QLineEdit { background-color: #ffffff }')
-                self.lpre = int(float(self.lprestr) * 1000)
-                self.set_live_preset(self.lpre)
+                self.rpre_txt.setReadOnly(False)
+                self.lpre_txt.setReadOnly(False)
             
-        # update gate
-        self.gate = self.gatebox.currentIndex()
-        self.set_gate(self.gate)
+        # update timing
+        old_real = self.real
+        old_live = self.live
         
-        # update discriminators
-        self.lldstr = self.lldtxt.text()
-        if self.lldstr == '':
-            self.lldtxt.setStyleSheet(\
-                'QLineEdit { background-color: #ffffff }')
-            self.lld = 0
-            self.set_lld(self.lld)
-        elif self.lldstr == '-' or int(self.lldstr) < 0\
-                or int(self.lldstr) > 2047:
-            self.lldtxt.setStyleSheet(\
-                'QLineEdit { background-color: #f6989d }')
+        self.real = self.get_real()
+        self.real_str = '{0:.2f}'.format(self.real / 1000)
+        self.live = self.get_live()
+        self.live_str = '{0:.2f}'.format(self.live / 1000)
+        
+        if self.active:
+            self.dreals.append(self.real - old_real)
+            self.dreals.popleft()
+            dreal = sum(self.dreals)
+            self.dlives.append(self.live - old_live)
+            self.dlives.popleft()
+            dlive = sum(self.dlives)
+            if dreal > dlive:
+                self.dead = (1 - dlive/dreal) * 100
+                self.dead_str = '{0:.2f} %'.format(self.dead)
+            else:
+                self.dead = 0
+                self.dead_str = '%'
         else:
-            self.lldtxt.setStyleSheet(\
-                'QLineEdit { background-color: #ffffff }')
-            self.lld = int(self.lldstr)
-            self.set_lld(self.lld)
-            
-        self.uldstr = self.uldtxt.text()
-        if self.uldstr == '':
-            self.uldtxt.setStyleSheet(\
-                'QLineEdit { background-color: #ffffff }')
-            self.uld = 0
-            self.set_uld(self.uld)
-        elif self.uldstr == '-' or int(self.uldstr) < 0\
-                or int(self.uldstr) > 2047:
-            self.uldtxt.setStyleSheet(\
-                'QLineEdit { background-color: #f6989d }')
-        else:
-            self.uldtxt.setStyleSheet(\
-                'QLineEdit { background-color: #ffffff }')
-            self.uld = int(self.uldstr)
-            self.set_uld(self.uld)
+            self.dead = 0
+            self.dead_str = '%'
+        
+        self.real_lbl.setText(self.real_str)
+        self.live_lbl.setText(self.live_str)
+        self.dead_lbl.setText(self.dead_str)
         
     def is_active(self):
         return self.driver.is_active(self.hdet)
         
     def start(self):
         self.driver.comm(self.hdet, 'START')
-        
-        self.active = self.is_active()
-        if self.active:
-            self.startbtn.setEnabled(False)
-            self.stopbtn.setEnabled(True)
-            
-            self.rpretxt.setReadOnly(True)
-            self.lpretxt.setReadOnly(True)
+        self.update()
         
     def stop(self):
         self.driver.comm(self.hdet, 'STOP')
-        
-        self.active = self.is_active()
-        if not self.active:
-            self.startbtn.setEnabled(True)
-            self.stopbtn.setEnabled(False)
-            
-            self.rpretxt.setReadOnly(False)
-            self.lpretxt.setReadOnly(False)
+        self.update()
         
     def clear(self):
         self.driver.comm(self.hdet, 'CLEAR')
+        self.update()
         
     def get_real(self):
         resp = self.driver.comm(self.hdet, 'SHOW_TRUE')

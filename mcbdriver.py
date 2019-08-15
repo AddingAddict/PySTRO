@@ -62,6 +62,9 @@ class MCBDriver:
         
     def __del__(self):
         assert self.driver.MIOCleanup() == 1, 'Cleanup Failed'
+        
+    def get_det_length(self, hdet):
+        return self.driver.MIOGetDetLength(hdet)
 
     def get_last_error(self):
         macro_err = c_int()

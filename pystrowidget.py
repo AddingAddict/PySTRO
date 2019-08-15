@@ -13,43 +13,43 @@ class PySTROWidget(QtWidgets.QWidget):
         self.driver = MCBDriver()
         self.det_max = self.driver.get_config_max()
         
-        # initialize master control buttons
-        self.init_btngrp()
+        # initialize master data acq buttons
+        self.init_data_grp()
         
-        # layout master control widgets
-        self.layout.addWidget(self.btngrp, 0, 0)
+        # _layout master data acq widgets
+        self.layout.addWidget(self.data_grp, 0, 0)
         
-        # connect with MCBs and layout MCBWidgets
+        # connect with MCBs and _layout MCBWidgets
         self.mcbs = []
         for n in range(self.det_max):
             self.mcbs.append(MCBWidget(self.driver, ndet=n+1))
             self.layout.addWidget(self.mcbs[n], n+1, 0)
             
-    def init_btngrp(self):
-        # create a group for master control buttons
-        self.btngrp = QtWidgets.QGroupBox('Master Data Acquisition (All MCBs)')
-        self.btnlayout = QtWidgets.QHBoxLayout()
-        self.btngrp.setLayout(self.btnlayout)
+    def init_data_grp(self):
+        # create a group for master data acq buttons
+        self.data_grp = QtWidgets.QGroupBox('Master Data Acquisition (All MCBs)')
+        self.data_layout = QtWidgets.QHBoxLayout()
+        self.data_grp.setLayout(self.data_layout)
         
-        # create master control buttons
-        self.startbtn = QtWidgets.QPushButton('')
-        self.stopbtn = QtWidgets.QPushButton('')
-        self.clearbtn = QtWidgets.QPushButton('')
+        # create master data acq buttons
+        self.start_btn = QtWidgets.QPushButton('')
+        self.stop_btn = QtWidgets.QPushButton('')
+        self.clear_btn = QtWidgets.QPushButton('')
         
-        # add icons to control buttons
-        self.startbtn.setIcon(QtGui.QIcon('icons/start.png'))
-        self.stopbtn.setIcon(QtGui.QIcon('icons/stop.png'))
-        self.clearbtn.setIcon(QtGui.QIcon('icons/clear.png'))
+        # add icons to master data acq buttons
+        self.start_btn.setIcon(QtGui.QIcon('icons/start.png'))
+        self.stop_btn.setIcon(QtGui.QIcon('icons/stop.png'))
+        self.clear_btn.setIcon(QtGui.QIcon('icons/clear.png'))
         
-        # add response functions for buttons
-        self.startbtn.clicked.connect(self.start)
-        self.stopbtn.clicked.connect(self.stop)
-        self.clearbtn.clicked.connect(self.clear)
+        # add response functions for master data acq buttons
+        self.start_btn.clicked.connect(self.start)
+        self.stop_btn.clicked.connect(self.stop)
+        self.clear_btn.clicked.connect(self.clear)
         
-        # layout master control buttons
-        self.btnlayout.addWidget(self.startbtn)
-        self.btnlayout.addWidget(self.stopbtn)
-        self.btnlayout.addWidget(self.clearbtn)
+        # _layout master data acq buttons
+        self.data_layout.addWidget(self.start_btn)
+        self.data_layout.addWidget(self.stop_btn)
+        self.data_layout.addWidget(self.clear_btn)
             
     def start(self):
         for mcb in self.mcbs:
