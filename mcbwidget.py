@@ -5,6 +5,10 @@ import numpy as np
 from collections import deque
 
 class MCBWidget(QtWidgets.QWidget):
+    white = '#ffffff'
+    red = '#ff0000'
+    gray = '#cccccc'
+    
     gate_index = {
         'OFF' : 0,
         'COIN': 1,
@@ -61,11 +65,6 @@ class MCBWidget(QtWidgets.QWidget):
         self.right_layout.addWidget(self.plot_grp)
         self.right_layout.addWidget(QtWidgets.QWidget(), 10)
         
-        # create QTimer to update plot
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.update)
-        self.timer.start(200)
-        
     def init_plotwidget(self):
         self.counts = self.driver.get_data(self.hdet)
         self.chans = self.chan_max
@@ -96,6 +95,11 @@ class MCBWidget(QtWidgets.QWidget):
         self.stop_btn = QtWidgets.QPushButton('')
         self.clear_btn = QtWidgets.QPushButton('')
         
+        # get neutral button color
+        btn_color = self.start_btn.palette().color(QtGui.QPalette.Background)
+        self.neutral = '#{0:02x}{0:02x}{0:02x}'.format(\
+            btn_color.red(), btn_color.green(), btn_color.blue())
+        
         # add icons to data acq buttons
         self.start_btn.setIcon(QtGui.QIcon('icons/start.png'))
         self.stop_btn.setIcon(QtGui.QIcon('icons/stop.png'))
@@ -113,11 +117,11 @@ class MCBWidget(QtWidgets.QWidget):
         
         # enable/disable buttons
         if self.active:
-            self.start_btn.setEnabled(False)
-            self.stop_btn.setEnabled(True)
+            self.disable_btn(self.start_btn)
+            self.enable_btn(self.stop_btn)
         else:
-            self.start_btn.setEnabled(True)
-            self.stop_btn.setEnabled(False)
+            self.enable_btn(self.start_btn)
+            self.disable_btn(self.stop_btn)
         
     def init_time_grp(self):
         self.real = self.get_real()
@@ -186,15 +190,15 @@ class MCBWidget(QtWidgets.QWidget):
                 self.rpre_str = self.rpre_txt.text()
                 if self.rpre_str == '':
                     self.rpre_txt.setStyleSheet(\
-                        'QLineEdit { background-color: #ffffff }')
+                        'background-color: {0}'.format(self.white))
                     self.rpre = 0
                     self.set_real_preset(self.rpre)
                 elif self.rpre_str == '-' or float(self.rpre_str) < 0:
                     self.rpre_txt.setStyleSheet(\
-                        'QLineEdit { background-color: #f6989d }')
+                        'background-color: {0}'.format(self.red))
                 else:
                     self.rpre_txt.setStyleSheet(\
-                        'QLineEdit { background-color: #ffffff }')
+                        'background-color: {0}'.format(self.white))
                     self.rpre = int(float(self.rpre_str) * 1000)
                     self.set_real_preset(self.rpre)
         def lpre_changed():
@@ -202,15 +206,15 @@ class MCBWidget(QtWidgets.QWidget):
                 self.lpre_str = self.lpre_txt.text()
                 if self.lpre_str == '':
                     self.lpre_txt.setStyleSheet(\
-                        'QLineEdit { background-color: #ffffff }')
+                        'background-color: {0}'.format(self.white))
                     self.lpre = 0
                     self.set_live_preset(self.lpre)
                 elif self.lpre_str == '-' or float(self.lpre_str) < 0:
                     self.lpre_txt.setStyleSheet(\
-                        'QLineEdit { background-color: #f6989d }')
+                        'background-color: {0}'.format(self.red))
                 else:
                     self.lpre_txt.setStyleSheet(\
-                        'QLineEdit { background-color: #ffffff }')
+                        'background-color: {0}'.format(self.white))
                     self.lpre = int(float(self.lpre_str) * 1000)
                     self.set_live_preset(self.lpre)
         self.rpre_txt.textChanged.connect(rpre_changed)
@@ -269,32 +273,32 @@ class MCBWidget(QtWidgets.QWidget):
             self.lld_str = self.lld_txt.text()
             if self.lld_str == '':
                 self.lld_txt.setStyleSheet(\
-                    'QLineEdit { background-color: #ffffff }')
+                    'background-color: {0}'.format(self.white))
                 self.lld = 0
                 self.set_lld(self.lld)
             elif self.lld_str == '-' or int(self.lld_str) < 0\
                     or int(self.lld_str) > self.chan_max:
                 self.lld_txt.setStyleSheet(\
-                    'QLineEdit { background-color: #f6989d }')
+                    'background-color: {0}'.format(self.red))
             else:
                 self.lld_txt.setStyleSheet(\
-                    'QLineEdit { background-color: #ffffff }')
+                    'background-color: {0}'.format(self.white))
                 self.lld = int(self.lld_str)
                 self.set_lld(self.lld)
         def uld_change():
             self.uld_str = self.uld_txt.text()
             if self.uld_str == '':
                 self.uld_txt.setStyleSheet(\
-                    'QLineEdit { background-color: #ffffff }')
+                    'background-color: {0}'.format(self.white))
                 self.uld = 0
                 self.set_uld(self.uld)
             elif self.uld_str == '-' or int(self.uld_str) < 0\
                     or int(self.uld_str) > self.chan_max:
                 self.uld_txt.setStyleSheet(\
-                    'QLineEdit { background-color: #f6989d }')
+                    'background-color: {0}'.format(self.red))
             else:
                 self.uld_txt.setStyleSheet(\
-                    'QLineEdit { background-color: #ffffff }')
+                    'background-color: {0}'.format(self.white))
                 self.uld = int(self.uld_str)
                 self.set_uld(self.uld)
         self.lld_txt.textChanged.connect(lld_change)
@@ -326,16 +330,16 @@ class MCBWidget(QtWidgets.QWidget):
         # add response functions for buttons
         def log_click():
             self.mode = 'Log'
-            self.log_btn.setEnabled(False)
-            self.auto_btn.setEnabled(True)
+            self.disable_btn(self.log_btn)
+            self.enable_btn(self.auto_btn)
             
             self.plot.setYRange(0, 31, padding=0)
             logsafe = np.maximum(1, self.rebin)
             self.hist.setOpts(x=np.arange(self.chans), height=np.log2(logsafe))
         def auto_click():
             self.mode = 'Auto'
-            self.log_btn.setEnabled(True)
-            self.auto_btn.setEnabled(False)
+            self.enable_btn(self.log_btn)
+            self.disable_btn(self.auto_btn)
             
             self.plot.setYRange(0, 1<<int(self.rebin.max()).bit_length(),\
                 padding=0)
@@ -396,21 +400,21 @@ class MCBWidget(QtWidgets.QWidget):
                 padding=0)
             self.hist.setOpts(x=np.arange(self.chans), height=self.rebin)
         
-        # enable/disable buttons and preset _boxes
+        # enable/disable data buttons and preset boxes
         old_state = self.active
         self.active = self.is_active()
         state_changed = (self.active != old_state)
         
         if state_changed:
             if self.active:
-                self.start_btn.setEnabled(False)
-                self.stop_btn.setEnabled(True)
+                self.disable_btn(self.start_btn)
+                self.enable_btn(self.stop_btn)
                 
                 self.rpre_txt.setReadOnly(True)
                 self.lpre_txt.setReadOnly(True)
             else:
-                self.start_btn.setEnabled(True)
-                self.stop_btn.setEnabled(False)
+                self.enable_btn(self.start_btn)
+                self.disable_btn(self.stop_btn)
                 
                 self.rpre_txt.setReadOnly(False)
                 self.lpre_txt.setReadOnly(False)
@@ -444,6 +448,14 @@ class MCBWidget(QtWidgets.QWidget):
         self.real_lbl.setText(self.real_str)
         self.live_lbl.setText(self.live_str)
         self.dead_lbl.setText(self.dead_str)
+        
+    def enable_btn(self, btn):
+        btn.setEnabled(True)
+        btn.setStyleSheet('background-color: {0}'.format(self.neutral))
+        
+    def disable_btn(self, btn):
+        btn.setEnabled(False)
+        btn.setStyleSheet('background-color: {0}'.format(self.gray))
         
     def is_active(self):
         return self.driver.is_active(self.hdet)
