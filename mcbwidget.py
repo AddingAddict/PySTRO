@@ -71,7 +71,7 @@ class MCBWidget(QtWidgets.QWidget):
         
         # create plot window
         self.plot = pg.PlotWidget()
-        self.plot.setXRange(0, self.chans, padding=0)
+        self.plot.setXRange(0, self.chans-1, padding=0)
         self.plot.setYRange(0, 1<<int(self.counts.max()).bit_length(),\
             padding=0)
         self.plot.hideAxis('bottom')
@@ -365,7 +365,7 @@ class MCBWidget(QtWidgets.QWidget):
         def chan_change():
             self.chans = int(self.chan_max / (1<<self.chan_box.currentIndex()))
             
-            self.plot.setXRange(0, self.chans, padding=0)
+            self.plot.setXRange(0, self.chans-1, padding=0)
             self.rebin = self.counts.reshape((self.chans, -1)).sum(axis=1)
             if self.mode == 'Log':
                 self.plot.setYRange(0, 31, padding=0)
@@ -390,7 +390,7 @@ class MCBWidget(QtWidgets.QWidget):
         self.counts = self.driver.get_data(self.hdet)
         self.rebin = self.counts.reshape((self.chans, -1)).sum(axis=1)
         
-        self.plot.setXRange(0, self.chans, padding=0)
+        self.plot.setXRange(0, self.chans-1, padding=0)
         if self.mode == 'Log':
             self.plot.setYRange(0, 31, padding=0)
             logsafe = np.maximum(1, self.rebin)
