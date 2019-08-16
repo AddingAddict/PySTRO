@@ -104,6 +104,9 @@ class MCBWidget(QtWidgets.QWidget):
         self.start_btn.setIcon(QtGui.QIcon('icons/start.png'))
         self.stop_btn.setIcon(QtGui.QIcon('icons/stop.png'))
         self.clear_btn.setIcon(QtGui.QIcon('icons/clear.png'))
+        self.start_btn.setIconSize(QtCore.QSize(25,25))
+        self.stop_btn.setIconSize(QtCore.QSize(25,25))
+        self.clear_btn.setIconSize(QtCore.QSize(25,25))
         
         # add response functions for data acq buttons
         self.start_btn.clicked.connect(self.start)

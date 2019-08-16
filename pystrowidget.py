@@ -19,19 +19,42 @@ class PySTROWidget(QtWidgets.QWidget):
         self.mcbs = []
         for n in range(self.det_max):
             self.mcbs.append(MCBWidget(self.driver, ndet=n+1))
-            self.layout.addWidget(self.mcbs[n], n+1, 0)
+            self.layout.addWidget(self.mcbs[n], n+1, 0, 1, 2)
         
         # initialize master data acq buttons
+        self.init_file_grp()
         self.init_data_grp()
         
         # _layout master data acq widgets
-        self.layout.addWidget(self.data_grp, 0, 0)
+        self.layout.addWidget(self.file_grp, 0, 0)
+        self.layout.addWidget(self.data_grp, 0, 1)
         
         # create QTimer to update plot
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update)
         self.timer.start(200)
-            
+        
+    def init_file_grp(self):
+        # create a group for file i/o buttons
+        self.file_grp = QtWidgets.QGroupBox('Open/Save File')
+        self.file_layout = QtWidgets.QHBoxLayout()
+        self.file_grp.setLayout(self.file_layout)
+        
+        # create file i/o buttons
+        self.open_btn = QtWidgets.QPushButton('')
+        self.save_btn = QtWidgets.QPushButton('')
+        
+        # add icons to master data acq buttons
+        self.open_btn.setIcon(QtGui.QIcon('icons/open.png'))
+        self.save_btn.setIcon(QtGui.QIcon('icons/save.png'))
+        self.open_btn.setIconSize(QtCore.QSize(30,30))
+        self.save_btn.setIconSize(QtCore.QSize(30,30))
+        
+        # _layout master data acq buttons
+        self.file_layout.addWidget(self.open_btn)
+        self.file_layout.addWidget(self.save_btn)
+
+
     def init_data_grp(self):
         # create a group for master data acq buttons
         self.data_grp = QtWidgets.QGroupBox('Master Data Acquisition (All MCBs)')
@@ -52,6 +75,9 @@ class PySTROWidget(QtWidgets.QWidget):
         self.start_btn.setIcon(QtGui.QIcon('icons/start.png'))
         self.stop_btn.setIcon(QtGui.QIcon('icons/stop.png'))
         self.clear_btn.setIcon(QtGui.QIcon('icons/clear.png'))
+        self.start_btn.setIconSize(QtCore.QSize(30,30))
+        self.stop_btn.setIconSize(QtCore.QSize(30,30))
+        self.clear_btn.setIconSize(QtCore.QSize(30,30))
         
         # add response functions for master data acq buttons
         self.start_btn.clicked.connect(self.start)
