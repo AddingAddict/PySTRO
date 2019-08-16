@@ -29,10 +29,14 @@ class PySTROWidget(QtWidgets.QWidget):
         self.layout.addWidget(self.file_grp, 0, 0)
         self.layout.addWidget(self.data_grp, 0, 1)
         
-        # create QTimer to update plot
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.update)
-        self.timer.start(200)
+        # create QTimer to do updates
+        self.timer_mcb = QtCore.QTimer()
+        self.timer_mcb.timeout.connect(self.update_mcb)
+        self.timer_mcb.start(200)
+
+        self.timer_self = QtCore.QTimer()
+        self.timer_self.timeout.connect(self.update_self)
+        self.timer_self.start(20)
         
     def init_file_grp(self):
         # create a group for file i/o buttons
@@ -101,12 +105,8 @@ class PySTROWidget(QtWidgets.QWidget):
             
         self.start_btn.setStyleSheet(\
             'QLineEdit { background-color: #ffffff }')
-        
-    def update(self):
-        # update mcb widgets
-        for mcb in self.mcbs:
-            mcb.update()
-            
+
+    def update_self(self):
         # enable/disable data buttons
         old_active = self.active_mcbs
         self.active_mcbs = [mcb.active for mcb in self.mcbs]
@@ -124,6 +124,11 @@ class PySTROWidget(QtWidgets.QWidget):
             else:
                 self.enable_btn(self.start_btn)
                 self.enable_btn(self.stop_btn)
+        
+    def update_mcb(self):
+        # update mcb widgets
+        for mcb in self.mcbs:
+            mcb.update()
         
     def enable_btn(self, btn):
         btn.setEnabled(True)
@@ -159,42 +164,10 @@ class PySTROWidget(QtWidgets.QWidget):
         for mcb in self.mcbs:
             mcb.stop()
             
-        # enable/disable data buttons
-        old_active = self.active_mcbs
-        self.active_mcbs = [mcb.active for mcb in self.mcbs]
-        state_changed = (self.active_mcbs != old_active)
-        
-        if state_changed:
-            self.all_active = all(self.active_mcbs)
-            self.none_active = not any(self.active_mcbs)
-            if self.all_active:
-                self.disable_btn(self.start_btn)
-                self.enable_btn(self.stop_btn)
-            elif self.none_active:
-                self.enable_btn(self.start_btn)
-                self.disable_btn(self.stop_btn)
-            else:
-                self.enable_btn(self.start_btn)
-                self.enable_btn(self.stop_btn)
+        self.update_self()
             
     def clear(self):
         for mcb in self.mcbs:
             mcb.clear()
             
-        # enable/disable data buttons
-        old_active = self.active_mcbs
-        self.active_mcbs = [mcb.active for mcb in self.mcbs]
-        state_changed = (self.active_mcbs != old_active)
-        
-        if state_changed:
-            self.all_active = all(self.active_mcbs)
-            self.none_active = not any(self.active_mcbs)
-            if self.all_active:
-                self.disable_btn(self.start_btn)
-                self.enable_btn(self.stop_btn)
-            elif self.none_active:
-                self.enable_btn(self.start_btn)
-                self.disable_btn(self.stop_btn)
-            else:
-                self.enable_btn(self.start_btn)
-                self.enable_btn(self.stop_btn)
+        self.update_self()
