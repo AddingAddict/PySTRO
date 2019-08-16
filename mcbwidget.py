@@ -33,8 +33,11 @@ class MCBWidget(QtWidgets.QWidget):
         self.active = self.is_active()
         
         # create label displaying MCB ID and name
-        self.label = QtWidgets.QLabel('{0:04d} {1}'.format(self.id,\
-            self.name))
+        self.title = '{0:04d} {1}'.format(self.id, self.name)
+        self.label = QtWidgets.QLabel(self.title)
+
+        # get neutral button color
+        self.get_neutral_color()
         
         # initialize sections of MCBWidget
         self.init_plotwidget()
@@ -44,7 +47,7 @@ class MCBWidget(QtWidgets.QWidget):
         self.init_adc_grp()
         self.init_plot_grp()
         
-        # _layout widgets
+        # layout widgets
         self.left_layout = QtWidgets.QVBoxLayout()
         self.mid_layout = QtWidgets.QVBoxLayout()
         self.right_layout = QtWidgets.QVBoxLayout()
@@ -64,9 +67,16 @@ class MCBWidget(QtWidgets.QWidget):
         self.right_layout.addWidget(self.adc_grp)
         self.right_layout.addWidget(self.plot_grp)
         self.right_layout.addWidget(QtWidgets.QWidget(), 10)
+
+    def get_neutral_color(self):
+        # get neutral button color
+        btn_color = QtWidgets.QPushButton().palette().color(\
+            QtGui.QPalette.Background)
+        self.neutral = '#{0:02x}{0:02x}{0:02x}'.format(\
+            btn_color.red(), btn_color.green(), btn_color.blue())
         
     def init_plotwidget(self):
-        self.counts = self.driver.get_data(self.hdet)
+        self.counts = self.get_data()
         self.chans = self.chan_max
         
         # create plot window
@@ -95,11 +105,6 @@ class MCBWidget(QtWidgets.QWidget):
         self.stop_btn = QtWidgets.QPushButton('')
         self.clear_btn = QtWidgets.QPushButton('')
         
-        # get neutral button color
-        btn_color = self.start_btn.palette().color(QtGui.QPalette.Background)
-        self.neutral = '#{0:02x}{0:02x}{0:02x}'.format(\
-            btn_color.red(), btn_color.green(), btn_color.blue())
-        
         # add icons to data acq buttons
         self.start_btn.setIcon(QtGui.QIcon('icons/start.png'))
         self.stop_btn.setIcon(QtGui.QIcon('icons/stop.png'))
@@ -113,7 +118,7 @@ class MCBWidget(QtWidgets.QWidget):
         self.stop_btn.clicked.connect(self.stop)
         self.clear_btn.clicked.connect(self.clear)
         
-        # _layout data acq buttons
+        # layout data acq buttons
         self.data_layout.addWidget(self.start_btn)
         self.data_layout.addWidget(self.stop_btn)
         self.data_layout.addWidget(self.clear_btn)
@@ -152,7 +157,7 @@ class MCBWidget(QtWidgets.QWidget):
         self.live_lbl.setMinimumWidth(50)
         self.dead_lbl.setMinimumWidth(50)
         
-        # _layout timing labels
+        # layout timing labels
         self.time_layout.addWidget(QtWidgets.QLabel('Real: '), 0, 0)
         self.time_layout.addWidget(QtWidgets.QLabel('Live: '), 1, 0)
         self.time_layout.addWidget(QtWidgets.QLabel('Dead: '), 2, 0)
@@ -223,7 +228,7 @@ class MCBWidget(QtWidgets.QWidget):
         self.rpre_txt.textChanged.connect(rpre_changed)
         self.lpre_txt.textChanged.connect(lpre_changed)
         
-        # _layout preset widgets
+        # layout preset widgets
         self.preset_layout.addWidget(QtWidgets.QLabel('Real: '), 0, 0)
         self.preset_layout.addWidget(QtWidgets.QLabel('Live: '), 1, 0)
         self.preset_layout.addWidget(self.rpre_txt, 0, 1)
@@ -307,7 +312,7 @@ class MCBWidget(QtWidgets.QWidget):
         self.lld_txt.textChanged.connect(lld_change)
         self.uld_txt.textChanged.connect(uld_change)
         
-        # _layout ADC widgets
+        # layout ADC widgets
         self.adc_layout.addWidget(QtWidgets.QLabel('Gate: '), 0, 0, 1, 2)
         self.adc_layout.addWidget(QtWidgets.QLabel('Lower Disc: '), 2, 0)
         self.adc_layout.addWidget(QtWidgets.QLabel('Upper Disc: '), 3, 0)
@@ -381,7 +386,7 @@ class MCBWidget(QtWidgets.QWidget):
                 self.hist.setOpts(x=np.arange(self.chans), height=self.rebin)
         self.chan_box.currentIndexChanged.connect(chan_change)
         
-        # _layout plot widgets
+        # layout plot widgets
         self.plot_layout.addWidget(QtWidgets.QLabel('Plot Mode: '), 0, 0, 1, 2)
         self.plot_layout.addWidget(QtWidgets.QLabel('Channels: '), 2, 0)
         self.plot_layout.addWidget(self.log_btn, 1, 0)
@@ -390,7 +395,7 @@ class MCBWidget(QtWidgets.QWidget):
         
     def update(self):
         # update plot
-        self.counts = self.driver.get_data(self.hdet)
+        self.counts = self.get_data()
         self.rebin = self.counts.reshape((self.chans, -1)).sum(axis=1)
         
         self.plot.setXRange(0, self.chans-1, padding=0)
@@ -474,6 +479,9 @@ class MCBWidget(QtWidgets.QWidget):
     def clear(self):
         self.driver.comm(self.hdet, 'CLEAR')
         self.update()
+
+    def get_data(self):
+        return self.driver.get_data(self.hdet)
         
     def get_real(self):
         resp = self.driver.comm(self.hdet, 'SHOW_TRUE')
@@ -509,6 +517,17 @@ class MCBWidget(QtWidgets.QWidget):
         resp = self.driver.comm(self.hdet, 'SHOW_ULD')
         uld = int(resp[2:-4])
         return uld
+
+    def set_data(self, buffer):
+        self.driver.set_data(self.hdet, buffer)
+        
+    def set_real(self, msec):
+        ticks = int(msec / 20)
+        self.driver.comm(self.hdet, 'SET_TRUE {}'.format(ticks))
+        
+    def set_live(self, msec):
+        ticks = int(msec / 20)
+        self.driver.comm(self.hdet, 'SET_LIVE {}'.format(ticks))
         
     def set_real_preset(self, msec):
         ticks = int(msec / 20)
