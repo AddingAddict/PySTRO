@@ -87,53 +87,115 @@ class PySTROWidget(QtWidgets.QWidget):
             nmcb = self.mcb_box.currentIndex()
             mcb = self.mcbs[nmcb]
             file_name, file_type  = QtGui.QFileDialog.getOpenFileName(self,\
-                'Open File', filter='ASCII (*.spe);;All Files (*)')
-            # try:
-            file = open(file_name, 'r')
-            lines = file.readlines()
-
-            # get live/real time
-            live, real = map(int, lines[9].split(' '))
-            mcb.set_live(live * 1000)
-            mcb.set_real(real * 1000)
-
-            # make sure channels match
-            first_chan, last_chan = map(int, lines[11].split(' '))
-            assert last_chan+1 == mcb.chan_max,\
-                'File and MCB have different channels'
-
-            # get data
-            counts = np.zeros(mcb.chan_max)
-            for i in range(mcb.chan_max):
-                counts[i] = int(lines[12+i])
-            mcb.set_data(counts)
-
-            # get presets
-            pre_type = lines[-11]
-            if pre_type == 'Live Time\n':
-                mcb.lpre_txt.setText(lines[-10][:-1] + '.00')
-                if lines[-9][:-1] == '0':
-                    mcb.rpre_txt.setText('')
-                else:
-                    mcb.rpre_txt.setText(lines[-9][:-1] + '.00')
-            elif pre_type == 'Real Time\n':
-                mcb.rpre_txt.setText(lines[-10][:-1] + '.00')
-                if lines[-9][:-1] == '0':
-                    mcb.lpre_txt.setText('')
-                else:
-                    mcb.lpre_txt.setText(lines[-9][:-1] + '.00')
-            else:
-                mcb.lpre_txt.setText('')
-                mcb.rpre_txt.setText('')
-            # except:
-            #     pass
-        def save_click():
-            file_name, file_type = QtGui.QFileDialog.getSaveFileName(self,\
-                'Save File', filter='ASCII (*.spe);;All Files (*)')
+                'Open File', filter='ASCII (*.Spe);;All Files (*)')
             try:
-                file = open(file_name, 'w')
+                file = open(file_name, 'r')
+                lines = file.readlines()
+
+                # get live/real time
+                live, real = map(int, lines[9].split(' '))
+                mcb.set_live(live * 1000)
+                mcb.set_real(real * 1000)
+
+                # make sure channels match
+                first_chan, last_chan = map(int, lines[11].split(' '))
+                assert last_chan+1 == mcb.chan_max,\
+                    'File and MCB have different channels'
+
+                # get data
+                counts = np.zeros(mcb.chan_max)
+                for i in range(mcb.chan_max):
+                    counts[i] = int(lines[12+i])
+                mcb.set_data(counts)
+
+                # get presets
+                pre_type = lines[-11]
+                if pre_type == 'Live Time\n':
+                    mcb.lpre_txt.setText(lines[-10][:-1] + '.00')
+                    if lines[-9][:-1] == '0':
+                        mcb.rpre_txt.setText('')
+                    else:
+                        mcb.rpre_txt.setText(lines[-9][:-1] + '.00')
+                elif pre_type == 'Real Time\n':
+                    mcb.rpre_txt.setText(lines[-10][:-1] + '.00')
+                    if lines[-9][:-1] == '0':
+                        mcb.lpre_txt.setText('')
+                    else:
+                        mcb.lpre_txt.setText(lines[-9][:-1] + '.00')
+                else:
+                    mcb.lpre_txt.setText('')
+                    mcb.rpre_txt.setText('')
+
+                file.close()
             except:
                 pass
+        def save_click():
+            nmcb = self.mcb_box.currentIndex()
+            mcb = self.mcbs[nmcb]
+            file_name, file_type = QtGui.QFileDialog.getSaveFileName(self,\
+                'Save File', filter='ASCII (*.Spe);;All Files (*)')
+            # try:
+            file = open(file_name, 'w')
+
+            # TODO: currently unsupported
+            file.write('$SPEC_ID:\n' +\
+                'No sample description was entered.\n' +\
+                '$SPEC_REM:\n')
+
+            # write MCB ID and name
+            file.write('DET# ' + str(mcb.id) + '\n' +\
+                'DETDESC# ' + mcb.name + '\n')
+
+            # TODO: currently unsupported
+            file.write(('AP# Pystro\n' +\
+                '$DATE_MEA:\n' +\
+                'N\\A\n'))
+
+            # write live/real time
+            file.write('$MEAS_TIM:\n' +\
+                str(int(mcb.live / 1000)) + ' ' +\
+                str(int(mcb.real / 1000)) + '\n')
+
+            # write number of channels
+            file.write('$DATA:\n' +\
+                '0 ' + str(mcb.chan_max-1) + '\n')
+
+            # write data
+            for i in range(mcb.chan_max):
+                file.write(str(int(mcb.counts[i])).rjust(8) + '\n')
+
+            # TODO: currently unsupported
+            file.write('$ROI:\n' +\
+                '0\n')
+
+            # write presets
+            file.write('$PRESETS:\n')
+            if mcb.lpre == 0 and mcb.rpre == 0:
+                file.write('None\n' +\
+                '0\n' +\
+                '0\n')
+            elif mcb.rpre == 0 or mcb.lpre < mcb.rpre:
+                file.write('Live Time\n' +\
+                str(int(mcb.lpre / 1000)) + '\n' +\
+                str(int(mcb.rpre / 1000)) + '\n')
+            else:
+                file.write('Real Time\n' +\
+                str(int(mcb.rpre / 1000)) + '\n' +\
+                str(int(mcb.lpre / 1000)) + '\n')
+
+            # TODO: currently unsupported
+            file.write('$ENER_FIT:\n' +\
+                '0.000000 0.000000\n' +\
+                '$MCA_CAL:\n' +\
+                '3\n' +\
+                '0.000000E+000 0.000000E+000 0.000000E+000\n' +\
+                '$SHAPE_CAL:\n' +\
+                '3\n' +\
+                '0.000000E+000 0.000000E+000 0.000000E+000\n')
+
+            file.close()
+            # except:
+            #     pass
         self.open_btn.clicked.connect(open_click)
         self.save_btn.clicked.connect(save_click)
         
