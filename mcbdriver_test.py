@@ -1,5 +1,6 @@
 from ctypes import *
 import numpy as np
+from time import time
 
 class MCBDriver:
     error_codes = {
@@ -65,6 +66,7 @@ class MCBDriver:
         self.gate = 'OFF'
         self.lld = 0
         self.uld = 2047
+        self.start_time = int(time())
         
     def __del__(self):
         pass
@@ -86,6 +88,7 @@ class MCBDriver:
         if cmd == 'START':
             self.active = True
             self.buffer = np.arange(2048)
+            self.start_time = int(time())
         if cmd == 'STOP':
             self.active = False
         if cmd == 'CLEAR':
@@ -130,9 +133,9 @@ class MCBDriver:
         
     def get_data(self, hdet, start_chan=0, num_chans=2048):
         return self.buffer
-        
-    def set_data(self, hdet, buffer, start_chan=0, num_chans=2048):
-        self.buffer = buffer
+
+    def get_start_time(self, hdet):
+        return self.star_time
             
     def is_active(self, hdet):
         return self.active
