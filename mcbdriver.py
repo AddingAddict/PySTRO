@@ -1,5 +1,6 @@
 from ctypes import *
 import numpy as np
+from time import time
 
 class MCBDriver:
     error_codes = {
@@ -115,10 +116,10 @@ class MCBDriver:
             buffer.ctypes.data_as(POINTER(c_int32)), 0, 0, 0, '') > 0,\
             'Get Data Failed'
         return buffer
-        
-    def set_data(self, hdet, buffer, start_chan=0, num_chans=2048):
-        assert self.driver.MIOSetData(hdet, start_chan, num_chans,\
-            buffer.ctypes.data_as(POINTER(c_int32)), '') > 0, 'Set Data Failed'
+
+    def get_start_time(self, hdet):
+        current_time = c_long(int(time()))
+        return self.driver.MIOGetStartTime(hdet, byref(current_time))
             
     def is_active(self, hdet):
         return self.driver.MIOIsActive(hdet) == 1

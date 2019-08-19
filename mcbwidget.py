@@ -1,8 +1,10 @@
 from mcbdriver import MCBDriver
+from spoiler import Spoiler
 from PyQt5 import QtWidgets, QtGui, QtCore
 import pyqtgraph as pg
 import numpy as np
 from collections import deque
+from datetime import datetime
 
 class MCBWidget(QtWidgets.QWidget):
     white = '#ffffff'
@@ -15,7 +17,7 @@ class MCBWidget(QtWidgets.QWidget):
         'ANTI': 2
     }
     
-    def __init__(self, mcb_driver, ndet):
+    def __init__(self, mcb_driver, ndet, ):
         QtWidgets.QWidget.__init__(self)
         self.layout = QtWidgets.QHBoxLayout()
         self.setLayout(self.layout)
@@ -29,8 +31,12 @@ class MCBWidget(QtWidgets.QWidget):
         self.hdet = self.driver.open_detector(ndet)
         self.name, self.id = self.driver.get_config_name(ndet)
         self.chan_max = self.driver.get_det_length(self.hdet)
-        self.chan_min = 256
+        self.chan_min = 8
         self.active = self.is_active()
+        self.start_datetime = datetime.fromtimestamp(\
+            self.driver.get_start_time(self.hdet))
+        self.start_time_str = self.start_datetime.strftime('%I:%M:%S %p')
+        self.start_date_str = self.start_datetime.strftime('%m/%d/%Y')
         
         # create label displaying MCB ID and name
         self.title = '{0:04d} {1}'.format(self.id, self.name)
@@ -49,21 +55,18 @@ class MCBWidget(QtWidgets.QWidget):
         
         # layout widgets
         self.left_layout = QtWidgets.QVBoxLayout()
-        self.mid_layout = QtWidgets.QVBoxLayout()
         self.right_layout = QtWidgets.QVBoxLayout()
         
         self.layout.addLayout(self.left_layout, 20)
-        self.layout.addLayout(self.mid_layout, 1)
         self.layout.addLayout(self.right_layout, 1)
         
         self.left_layout.addWidget(self.label)
         self.left_layout.addWidget(self.plot)
+        self.left_layout.addWidget(self.line_frm)
         
-        self.mid_layout.addWidget(self.data_grp)
-        self.mid_layout.addWidget(self.time_grp)
-        self.mid_layout.addWidget(self.preset_grp)
-        self.mid_layout.addWidget(QtWidgets.QWidget(), 10)
-        
+        self.right_layout.addWidget(self.data_grp)
+        self.right_layout.addWidget(self.time_grp)
+        self.right_layout.addWidget(self.preset_grp)
         self.right_layout.addWidget(self.adc_grp)
         self.right_layout.addWidget(self.plot_grp)
         self.right_layout.addWidget(QtWidgets.QWidget(), 10)
@@ -80,8 +83,9 @@ class MCBWidget(QtWidgets.QWidget):
         self.chans = self.chan_max
         
         # create plot window
-        self.plot = pg.PlotWidget()
-        self.plot.setXRange(0, self.chans-1, padding=0)
+        self.plot = pg.PlotWidget(enableMenu=False)
+        self.plot.setMouseEnabled(False, False)
+        self.plot.setXRange(0, self.chans, padding=0)
         self.plot.setYRange(0, 1<<int(self.counts.max()).bit_length(),\
             padding=0)
         self.plot.hideAxis('bottom')
@@ -90,9 +94,49 @@ class MCBWidget(QtWidgets.QWidget):
         
         # create initial histogram
         self.chans = self.chan_max
-        self.hist = pg.BarGraphItem(x=np.arange(self.chans),\
-            height=self.counts, width=1, pen='b', brush='b')
+        self.rebin = self.counts.reshape((self.chan_max, -1)).sum(axis=1)
+        self.hist = pg.BarGraphItem(x0=np.arange(self.chans),\
+            height=self.rebin, width=1, pen='b', brush='b')
         self.plot.addItem(self.hist)
+
+        # create initial vertical line
+        self.line = pg.InfiniteLine(pos=self.chan_max/2, pen='k', movable=True)
+        self.plot.addItem(self.line)
+
+        self.line_x = int(self.line.value())
+        self.line_y = self.rebin[self.line_x]
+
+        # create line info frame
+        self.line_frm = QtWidgets.QFrame()
+        self.line_frm_layout = QtWidgets.QHBoxLayout()
+        self.line_frm.setLayout(self.line_frm_layout)
+
+        # create line info labels
+        self.line_x_lbl = QtWidgets.QLabel(str(self.line_x))
+        self.line_y_lbl = QtWidgets.QLabel(str(self.line_y))
+
+        # add response function for line position change
+        def line_change():
+            self.line_x = int(self.line.value())
+            self.line_y = self.rebin[self.line_x]
+
+            self.line_x_lbl.setText(str(self.line_x))
+            self.line_y_lbl.setText(str(self.line_y))
+        self.line.sigPositionChanged.connect(line_change)
+
+        # add response function for mouse click
+        def mouse_click(event):
+            pos = event.scenePos()
+            self.line.setValue(pos.x()*2)
+        self.plot.scene().sigMouseClicked.connect(mouse_click)
+
+        # layout line info widgets
+        self.line_frm_layout.addWidget(QtWidgets.QLabel('Marker: '))
+        self.line_frm_layout.addWidget(self.line_x_lbl)
+        self.line_frm_layout.addWidget(QtWidgets.QLabel(' = '))
+        self.line_frm_layout.addWidget(self.line_y_lbl)
+        self.line_frm_layout.addWidget(QtWidgets.QLabel(' Counts'))
+        self.line_frm_layout.addWidget(QtWidgets.QWidget(), 20)
         
     def init_data_grp(self):
         # create a group for data acq buttons
@@ -109,9 +153,9 @@ class MCBWidget(QtWidgets.QWidget):
         self.start_btn.setIcon(QtGui.QIcon('icons/start.png'))
         self.stop_btn.setIcon(QtGui.QIcon('icons/stop.png'))
         self.clear_btn.setIcon(QtGui.QIcon('icons/clear.png'))
-        self.start_btn.setIconSize(QtCore.QSize(25,25))
-        self.stop_btn.setIconSize(QtCore.QSize(25,25))
-        self.clear_btn.setIconSize(QtCore.QSize(25,25))
+        self.start_btn.setIconSize(QtCore.QSize(20,20))
+        self.stop_btn.setIconSize(QtCore.QSize(20,20))
+        self.clear_btn.setIconSize(QtCore.QSize(20,20))
         
         # add response functions for data acq buttons
         self.start_btn.clicked.connect(self.start)
@@ -147,23 +191,33 @@ class MCBWidget(QtWidgets.QWidget):
         self.time_grp.setLayout(self.time_layout)
         
         # create timing labels
+        self.start_time_lbl = QtWidgets.QLabel(self.start_time_str)
+        self.start_date_lbl = QtWidgets.QLabel(self.start_date_str)
         self.real_lbl = QtWidgets.QLabel(self.real_str)
         self.live_lbl = QtWidgets.QLabel(self.live_str)
         self.dead_lbl = QtWidgets.QLabel(self.dead_str)
+        self.start_time_lbl.setAlignment(QtCore.Qt.AlignRight)
+        self.start_date_lbl.setAlignment(QtCore.Qt.AlignRight)
         self.real_lbl.setAlignment(QtCore.Qt.AlignRight)
         self.live_lbl.setAlignment(QtCore.Qt.AlignRight)
         self.dead_lbl.setAlignment(QtCore.Qt.AlignRight)
+        self.start_time_lbl.setMinimumWidth(50)
+        self.start_date_lbl.setMinimumWidth(50)
         self.real_lbl.setMinimumWidth(50)
         self.live_lbl.setMinimumWidth(50)
         self.dead_lbl.setMinimumWidth(50)
         
         # layout timing labels
-        self.time_layout.addWidget(QtWidgets.QLabel('Real: '), 0, 0)
-        self.time_layout.addWidget(QtWidgets.QLabel('Live: '), 1, 0)
-        self.time_layout.addWidget(QtWidgets.QLabel('Dead: '), 2, 0)
-        self.time_layout.addWidget(self.real_lbl, 0, 1)
-        self.time_layout.addWidget(self.live_lbl, 1, 1)
-        self.time_layout.addWidget(self.dead_lbl, 2, 1)
+        self.time_layout.addWidget(QtWidgets.QLabel('Start: '), 0, 0)
+        self.time_layout.addWidget(QtWidgets.QWidget(), 1, 0)
+        self.time_layout.addWidget(QtWidgets.QLabel('Real: '), 2, 0)
+        self.time_layout.addWidget(QtWidgets.QLabel('Live: '), 3, 0)
+        self.time_layout.addWidget(QtWidgets.QLabel('Dead: '), 4, 0)
+        self.time_layout.addWidget(self.start_time_lbl, 0, 1)
+        self.time_layout.addWidget(self.start_date_lbl, 1, 1)
+        self.time_layout.addWidget(self.real_lbl, 2, 1)
+        self.time_layout.addWidget(self.live_lbl, 3, 1)
+        self.time_layout.addWidget(self.dead_lbl, 4, 1)
         
     def init_preset_grp(self):
         self.rpre = self.get_real_preset()
@@ -178,9 +232,8 @@ class MCBWidget(QtWidgets.QWidget):
             self.lpre_str = ''
             
         # create a group for preset limits
-        self.preset_grp = QtWidgets.QGroupBox('Preset Limits')
+        self.preset_grp = Spoiler(title='Preset Limits')
         self.preset_layout = QtWidgets.QGridLayout()
-        self.preset_grp.setLayout(self.preset_layout)
         
         # create preset textboxes
         self.rpre_txt = QtWidgets.QLineEdit(self.rpre_str)
@@ -233,6 +286,7 @@ class MCBWidget(QtWidgets.QWidget):
         self.preset_layout.addWidget(QtWidgets.QLabel('Live: '), 1, 0)
         self.preset_layout.addWidget(self.rpre_txt, 0, 1)
         self.preset_layout.addWidget(self.lpre_txt, 1, 1)
+        self.preset_grp.setContentLayout(self.preset_layout)
         
         # enable/disable presets
         if self.active:
@@ -250,9 +304,8 @@ class MCBWidget(QtWidgets.QWidget):
         self.uld_str = str(self.uld)
         
         # create a group for ADC settings
-        self.adc_grp = QtWidgets.QGroupBox('ADC Settings')
+        self.adc_grp = Spoiler(title='ADC Settings')
         self.adc_layout = QtWidgets.QGridLayout()
-        self.adc_grp.setLayout(self.adc_layout)
         
         # create gate dropdown menu
         self.gate_box = QtWidgets.QComboBox()
@@ -319,21 +372,21 @@ class MCBWidget(QtWidgets.QWidget):
         self.adc_layout.addWidget(self.gate_box, 1, 0, 1, 2)
         self.adc_layout.addWidget(self.lld_txt, 2, 1)
         self.adc_layout.addWidget(self.uld_txt, 3, 1)
+        self.adc_grp.setContentLayout(self.adc_layout)
         
     def init_plot_grp(self):
         self.mode = 'Auto'
         
         # create a group for plot settings
-        self.plot_grp = QtWidgets.QGroupBox('Plot Settings')
+        self.plot_grp = Spoiler(title='Plot Settings')
         self.plot_layout = QtWidgets.QGridLayout()
-        self.plot_grp.setLayout(self.plot_layout)
         
         # create plot mode buttons
         self.log_btn = QtWidgets.QPushButton('Log')
         self.auto_btn = QtWidgets.QPushButton('Auto')
         self.log_btn.setMinimumWidth(20)
         self.auto_btn.setMinimumWidth(20)
-        self.auto_btn.setEnabled(False)
+        self.disable_btn(self.auto_btn)
         
         # add response functions for buttons
         def log_click():
@@ -343,7 +396,7 @@ class MCBWidget(QtWidgets.QWidget):
             
             self.plot.setYRange(0, 31, padding=0)
             logsafe = np.maximum(1, self.rebin)
-            self.hist.setOpts(x=np.arange(self.chans), height=np.log2(logsafe))
+            self.hist.setOpts(x0=np.arange(self.chans), height=np.log2(logsafe))
         def auto_click():
             self.mode = 'Auto'
             self.enable_btn(self.log_btn)
@@ -351,7 +404,7 @@ class MCBWidget(QtWidgets.QWidget):
             
             self.plot.setYRange(0, 1<<int(self.rebin.max()).bit_length(),\
                 padding=0)
-            self.hist.setOpts(x=np.arange(self.chans), height=self.rebin)
+            self.hist.setOpts(x0=np.arange(self.chans), height=self.rebin)
         self.log_btn.clicked.connect(log_click)
         self.auto_btn.clicked.connect(auto_click)
         
@@ -373,17 +426,17 @@ class MCBWidget(QtWidgets.QWidget):
         def chan_change():
             self.chans = int(self.chan_max / (1<<self.chan_box.currentIndex()))
             
-            self.plot.setXRange(0, self.chans-1, padding=0)
+            self.plot.setXRange(0, self.chans, padding=0)
             self.rebin = self.counts.reshape((self.chans, -1)).sum(axis=1)
             if self.mode == 'Log':
                 self.plot.setYRange(0, 31, padding=0)
                 logsafe = np.maximum(1, self.rebin)
-                self.hist.setOpts(x=np.arange(self.chans),\
+                self.hist.setOpts(x0=np.arange(self.chans),\
                     height=np.log2(logsafe))
             else:
                 self.plot.setYRange(0, 1<<int(self.rebin.max()).bit_length(),\
                     padding=0)
-                self.hist.setOpts(x=np.arange(self.chans), height=self.rebin)
+                self.hist.setOpts(x0=np.arange(self.chans), height=self.rebin)
         self.chan_box.currentIndexChanged.connect(chan_change)
         
         # layout plot widgets
@@ -392,21 +445,22 @@ class MCBWidget(QtWidgets.QWidget):
         self.plot_layout.addWidget(self.log_btn, 1, 0)
         self.plot_layout.addWidget(self.auto_btn, 1, 1)
         self.plot_layout.addWidget(self.chan_box, 2, 1)
+        self.plot_grp.setContentLayout(self.plot_layout)
         
     def update(self):
         # update plot
         self.counts = self.get_data()
         self.rebin = self.counts.reshape((self.chans, -1)).sum(axis=1)
         
-        self.plot.setXRange(0, self.chans-1, padding=0)
+        self.plot.setXRange(0, self.chans, padding=0)
         if self.mode == 'Log':
             self.plot.setYRange(0, 31, padding=0)
             logsafe = np.maximum(1, self.rebin)
-            self.hist.setOpts(x=np.arange(self.chans), height=np.log2(logsafe))
+            self.hist.setOpts(x0=np.arange(self.chans), height=np.log2(logsafe))
         else:
             self.plot.setYRange(0, 1<<int(self.rebin.max()).bit_length(),\
                 padding=0)
-            self.hist.setOpts(x=np.arange(self.chans), height=self.rebin)
+            self.hist.setOpts(x0=np.arange(self.chans), height=self.rebin)
         
         # enable/disable data buttons and preset boxes
         old_state = self.active
@@ -431,6 +485,10 @@ class MCBWidget(QtWidgets.QWidget):
         old_real = self.real
         old_live = self.live
         
+        self.start_datetime = datetime.fromtimestamp(\
+            self.driver.get_start_time(self.hdet))
+        self.start_time_str = self.start_datetime.strftime('%I:%M:%S %p')
+        self.start_date_str = self.start_datetime.strftime('%m/%d/%Y')
         self.real = self.get_real()
         self.real_str = '{0:.2f}'.format(self.real / 1000)
         self.live = self.get_live()
@@ -453,6 +511,8 @@ class MCBWidget(QtWidgets.QWidget):
             self.dead = 0
             self.dead_str = '%'
         
+        self.start_time_lbl.setText(self.start_time_str)
+        self.start_date_lbl.setText(self.start_date_str)
         self.real_lbl.setText(self.real_str)
         self.live_lbl.setText(self.live_str)
         self.dead_lbl.setText(self.dead_str)
@@ -470,6 +530,8 @@ class MCBWidget(QtWidgets.QWidget):
         
     def start(self):
         self.driver.comm(self.hdet, 'START')
+        self.start_time = datetime.fromtimestamp(\
+            self.driver.get_start_time(self.hdet))
         self.update()
         
     def stop(self):
@@ -518,8 +580,9 @@ class MCBWidget(QtWidgets.QWidget):
         uld = int(resp[2:-4])
         return uld
 
-    def set_data(self, buffer):
-        self.driver.set_data(self.hdet, buffer)
+    def set_data(self, start_chan, num_chans=1, value=0):
+        self.driver.comm(self.hdet, 'SET_DATA {}, {}, {}'.format(start_chan,\
+            num_chans, value))
         
     def set_real(self, msec):
         ticks = int(msec / 20)

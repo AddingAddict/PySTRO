@@ -103,10 +103,8 @@ class PySTROWidget(QtWidgets.QWidget):
                     'File and MCB have different channels'
 
                 # get data
-                counts = np.zeros(mcb.chan_max)
                 for i in range(mcb.chan_max):
-                    counts[i] = int(lines[12+i])
-                mcb.set_data(counts)
+                    mcb.set_data(start_chan=i, value=int(lines[12+i]))
 
                 # get presets
                 pre_type = lines[-11]
@@ -127,6 +125,13 @@ class PySTROWidget(QtWidgets.QWidget):
                     mcb.rpre_txt.setText('')
 
                 file.close()
+
+                # update line info
+                mcb.line_x = int(mcb.line.value())
+                mcb.line_y = mcb.rebin[mcb.line_x]
+
+                mcb.line_x_lbl.setText(str(mcb.line_x))
+                mcb.line_y_lbl.setText(str(mcb.line_y))
             except:
                 pass
         def save_click():
@@ -134,73 +139,73 @@ class PySTROWidget(QtWidgets.QWidget):
             mcb = self.mcbs[nmcb]
             file_name, file_type = QtGui.QFileDialog.getSaveFileName(self,\
                 'Save File', filter='ASCII (*.Spe);;All Files (*)')
-            # try:
-            file = open(file_name, 'w')
+            try:
+                file = open(file_name, 'w')
 
-            # TODO: currently unsupported
-            file.write('$SPEC_ID:\n' +\
-                'No sample description was entered.\n' +\
-                '$SPEC_REM:\n')
+                # TODO: currently unsupported
+                file.write('$SPEC_ID:\n' +\
+                    'No sample description was entered.\n' +\
+                    '$SPEC_REM:\n')
 
-            # write MCB ID and name
-            file.write('DET# ' + str(mcb.id) + '\n' +\
-                'DETDESC# ' + mcb.name + '\n')
+                # write MCB ID and name
+                file.write('DET# ' + str(mcb.id) + '\n' +\
+                    'DETDESC# ' + mcb.name + '\n')
 
-            # TODO: currently unsupported
-            file.write(('AP# Pystro\n' +\
-                '$DATE_MEA:\n' +\
-                'N\\A\n'))
+                # write start date and time
+                file.write(('AP# Pystro\n' +\
+                    '$DATE_MEA:\n' +\
+                    mcb.start_datetime.strftime('%m/%d/%Y %H:%M:%S') + '\n'))
 
-            # write live/real time
-            file.write('$MEAS_TIM:\n' +\
-                str(int(mcb.live / 1000)) + ' ' +\
-                str(int(mcb.real / 1000)) + '\n')
+                # write live/real time
+                file.write('$MEAS_TIM:\n' +\
+                    str(int(mcb.live / 1000)) + ' ' +\
+                    str(int(mcb.real / 1000)) + '\n')
 
-            # write number of channels
-            file.write('$DATA:\n' +\
-                '0 ' + str(mcb.chan_max-1) + '\n')
+                # write number of channels
+                file.write('$DATA:\n' +\
+                    '0 ' + str(mcb.chan_max-1) + '\n')
 
-            # write data
-            for i in range(mcb.chan_max):
-                file.write(str(int(mcb.counts[i])).rjust(8) + '\n')
+                # write data
+                for i in range(mcb.chan_max):
+                    file.write(str(int(mcb.counts[i])).rjust(8) + '\n')
 
-            # TODO: currently unsupported
-            file.write('$ROI:\n' +\
-                '0\n')
+                # TODO: currently unsupported
+                file.write('$ROI:\n' +\
+                    '0\n')
 
-            # write presets
-            file.write('$PRESETS:\n')
-            if mcb.lpre == 0 and mcb.rpre == 0:
-                file.write('None\n' +\
-                '0\n' +\
-                '0\n')
-            elif mcb.rpre == 0 or mcb.lpre < mcb.rpre:
-                file.write('Live Time\n' +\
-                str(int(mcb.lpre / 1000)) + '\n' +\
-                str(int(mcb.rpre / 1000)) + '\n')
-            else:
-                file.write('Real Time\n' +\
-                str(int(mcb.rpre / 1000)) + '\n' +\
-                str(int(mcb.lpre / 1000)) + '\n')
+                # write presets
+                file.write('$PRESETS:\n')
+                if mcb.lpre == 0 and mcb.rpre == 0:
+                    file.write('None\n' +\
+                    '0\n' +\
+                    '0\n')
+                elif mcb.rpre == 0 or mcb.lpre < mcb.rpre:
+                    file.write('Live Time\n' +\
+                    str(int(mcb.lpre / 1000)) + '\n' +\
+                    str(int(mcb.rpre / 1000)) + '\n')
+                else:
+                    file.write('Real Time\n' +\
+                    str(int(mcb.rpre / 1000)) + '\n' +\
+                    str(int(mcb.lpre / 1000)) + '\n')
 
-            # TODO: currently unsupported
-            file.write('$ENER_FIT:\n' +\
-                '0.000000 0.000000\n' +\
-                '$MCA_CAL:\n' +\
-                '3\n' +\
-                '0.000000E+000 0.000000E+000 0.000000E+000\n' +\
-                '$SHAPE_CAL:\n' +\
-                '3\n' +\
-                '0.000000E+000 0.000000E+000 0.000000E+000\n')
+                # TODO: currently unsupported
+                file.write('$ENER_FIT:\n' +\
+                    '0.000000 0.000000\n' +\
+                    '$MCA_CAL:\n' +\
+                    '3\n' +\
+                    '0.000000E+000 0.000000E+000 0.000000E+000\n' +\
+                    '$SHAPE_CAL:\n' +\
+                    '3\n' +\
+                    '0.000000E+000 0.000000E+000 0.000000E+000\n')
 
-            file.close()
-            # except:
-            #     pass
+                file.close()
+            except:
+                pass
         self.open_btn.clicked.connect(open_click)
         self.save_btn.clicked.connect(save_click)
         
         # layout master data acq buttons
-        self.file_layout.addWidget(QtWidgets.QLabel('MCB to Open/Save'), 0, 0)
+        self.file_layout.addWidget(QtWidgets.QLabel('MCB to Open/Save:'), 0, 0)
         self.file_layout.addWidget(self.mcb_box, 1, 0)
         self.file_layout.addWidget(self.open_btn, 0, 1, 2, 1)
         self.file_layout.addWidget(self.save_btn, 0, 2, 2, 1)
