@@ -124,8 +124,9 @@ class MCBWidget(QtWidgets.QGroupBox):
 
         # add response function for mouse click
         def mouse_click(event):
-            pos = self.hist.mapFromScene(event.scenePos())
-            self.line.setValue(pos)
+            if event.button() == QtCore.Qt.LeftButton:
+                pos = self.hist.mapFromScene(event.scenePos())
+                self.line.setValue(pos)
         self.plot.scene().sigMouseClicked.connect(mouse_click)
         
     def init_data_grp(self):
