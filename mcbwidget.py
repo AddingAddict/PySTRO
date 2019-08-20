@@ -6,7 +6,7 @@ import numpy as np
 from collections import deque
 from datetime import datetime
 
-class MCBWidget(QtWidgets.QWidget):
+class MCBWidget(QtWidgets.QGroupBox):
     white = '#ffffff'
     red = '#ff0000'
     gray = '#cccccc'
@@ -18,7 +18,10 @@ class MCBWidget(QtWidgets.QWidget):
     }
     
     def __init__(self, mcb_driver, ndet, ):
-        QtWidgets.QWidget.__init__(self)
+        QtWidgets.QGroupBox.__init__(self)
+        self.setObjectName('MCBBox')
+        self.setStyleSheet('QGroupBox#MCBBox{' +\
+            'padding-top:15px; margin-top:-15px}')
         self.layout = QtWidgets.QHBoxLayout()
         self.setLayout(self.layout)
         
@@ -62,7 +65,7 @@ class MCBWidget(QtWidgets.QWidget):
         
         self.left_layout.addWidget(self.label)
         self.left_layout.addWidget(self.plot)
-        self.left_layout.addWidget(self.line_frm)
+        self.left_layout.addWidget(self.line_lbl)
         
         self.right_layout.addWidget(self.data_grp)
         self.right_layout.addWidget(self.time_grp)
@@ -106,37 +109,24 @@ class MCBWidget(QtWidgets.QWidget):
         self.line_x = int(self.line.value())
         self.line_y = self.rebin[self.line_x]
 
-        # create line info frame
-        self.line_frm = QtWidgets.QFrame()
-        self.line_frm_layout = QtWidgets.QHBoxLayout()
-        self.line_frm.setLayout(self.line_frm_layout)
-
-        # create line info labels
-        self.line_x_lbl = QtWidgets.QLabel(str(self.line_x))
-        self.line_y_lbl = QtWidgets.QLabel(str(self.line_y))
+        # create line info label
+        self.line_lbl = QtWidgets.QLabel('Marker: {} = {} Counts'.format(\
+            self.line_x, self.line_y))
 
         # add response function for line position change
         def line_change():
             self.line_x = int(self.line.value())
             self.line_y = self.rebin[self.line_x]
 
-            self.line_x_lbl.setText(str(self.line_x))
-            self.line_y_lbl.setText(str(self.line_y))
+            self.line_lbl.setText('Marker: {} = {} Counts'.format(\
+                self.line_x, self.line_y))
         self.line.sigPositionChanged.connect(line_change)
 
         # add response function for mouse click
         def mouse_click(event):
-            pos = event.scenePos()
-            self.line.setValue(pos.x()*2)
+            pos = self.hist.mapFromScene(event.scenePos())
+            self.line.setValue(pos)
         self.plot.scene().sigMouseClicked.connect(mouse_click)
-
-        # layout line info widgets
-        self.line_frm_layout.addWidget(QtWidgets.QLabel('Marker: '))
-        self.line_frm_layout.addWidget(self.line_x_lbl)
-        self.line_frm_layout.addWidget(QtWidgets.QLabel(' = '))
-        self.line_frm_layout.addWidget(self.line_y_lbl)
-        self.line_frm_layout.addWidget(QtWidgets.QLabel(' Counts'))
-        self.line_frm_layout.addWidget(QtWidgets.QWidget(), 20)
         
     def init_data_grp(self):
         # create a group for data acq buttons
@@ -424,6 +414,7 @@ class MCBWidget(QtWidgets.QWidget):
             
         # add response function for rebinning menu
         def chan_change():
+            old_chans = self.chans
             self.chans = int(self.chan_max / (1<<self.chan_box.currentIndex()))
             
             self.plot.setXRange(0, self.chans, padding=0)
@@ -437,6 +428,8 @@ class MCBWidget(QtWidgets.QWidget):
                 self.plot.setYRange(0, 1<<int(self.rebin.max()).bit_length(),\
                     padding=0)
                 self.hist.setOpts(x0=np.arange(self.chans), height=self.rebin)
+
+            self.line.setValue(self.line.value() * self.chans / old_chans)
         self.chan_box.currentIndexChanged.connect(chan_change)
         
         # layout plot widgets
