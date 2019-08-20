@@ -123,6 +123,10 @@ class MCBDriver:
             self.lld = int(cmd[8:])
         if cmd[:7] == 'SET_ULD':
             self.uld = int(cmd[8:])
+        if cmd[:8] == 'SET_DATA':
+            start_chan, num_chans, value = map(int, cmd[9:].split(','))
+            for i in range(num_chans):
+                self.buffer[start_chan + i] = value
         return resp
         
     def get_config_max(self):
@@ -135,7 +139,7 @@ class MCBDriver:
         return self.buffer
 
     def get_start_time(self, hdet):
-        return self.star_time
+        return self.start_time
             
     def is_active(self, hdet):
         return self.active
