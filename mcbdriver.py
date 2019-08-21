@@ -112,10 +112,15 @@ class MCBDriver:
     def get_data(self, hdet, start_chan=0, num_chans=2048):
         assert start_chan + num_chans <= 2048, 'Invalid Parameters in Get Data'
         buffer = np.zeros(num_chans, dtype=np.int32)
+        ret_chans = c_int16()
+        data_mask = c_uint32()
+        roi_mask = c_uint32()
         assert self.driver.MIOGetData(hdet, start_chan, num_chans,\
-            buffer.ctypes.data_as(POINTER(c_int32)), 0, 0, 0, '') > 0,\
+            buffer.ctypes.data_as(POINTER(c_int32)), byref(ret_chans),\
+            byref(data_mask), byref(roi_mask), '') > 0,\
             'Get Data Failed'
-        return buffer
+        return np.bitwise_and(buffer, data_mask),\
+            np.bitwise_and(buffer, roi_mask) > 0
 
     def get_start_time(self, hdet):
         current_time = c_long(int(time()))
