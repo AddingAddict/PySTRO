@@ -1,4 +1,5 @@
 from mcbdriver import MCBDriver
+from mcbviewbox import MCBViewBox
 from spoiler import Spoiler
 from PyQt5 import QtWidgets, QtGui, QtCore
 import pyqtgraph as pg
@@ -84,30 +85,30 @@ class MCBWidget(QtWidgets.QGroupBox):
     def init_plotwidget(self):
         self.counts = self.get_data()
         self.chans = self.chan_max
+
+        # create MCB viewbox
+        self.view = MCBViewBox(self.chans)
         
         # create plot window
-        self.plot = pg.PlotWidget(enableMenu=False)
+        self.plot = pg.PlotWidget(viewBox=self.view, enableMenu=False)
         self.plot.setMouseEnabled(False, False)
-        self.plot.setXRange(0, self.chans, padding=0)
-        self.plot.setYRange(0, 1<<int(self.counts.max()).bit_length(),\
-            padding=0)
         self.plot.hideAxis('bottom')
         self.plot.hideAxis('left')
         self.plot.setMinimumWidth(1024)
+        self.plot.setXRange(0, self.chans, padding=0)
+        self.plot.setYRange(0, 1<<int(self.counts.max()).bit_length(),\
+            padding=0)
         
         # create initial histogram
         self.chans = self.chan_max
         self.rebin = self.counts.reshape((self.chan_max, -1)).sum(axis=1)
-        self.hist = pg.BarGraphItem(x0=np.arange(self.chans),\
-            height=self.rebin, width=1, pen='b', brush='b')
-        self.plot.addItem(self.hist)
+        self.view.init_hist(self.chans, self.rebin)
 
         # create initial vertical line
-        self.line = pg.InfiniteLine(pos=self.chan_max/2, pen='k', movable=True)
-        self.plot.addItem(self.line)
+        self.view.init_line()
 
-        self.line_x = int(self.line.value())
-        self.line_y = self.rebin[self.line_x]
+        self.line_x = int(self.view.line.value())
+        self.line_y = int(self.rebin[self.line_x])
 
         # create line info label
         self.line_lbl = QtWidgets.QLabel('Marker: {} = {} Counts'.format(\
@@ -115,19 +116,15 @@ class MCBWidget(QtWidgets.QGroupBox):
 
         # add response function for line position change
         def line_change():
-            self.line_x = int(self.line.value())
-            self.line_y = self.rebin[self.line_x]
+            self.line_x = int(self.view.line.value())
+            self.line_y = int(self.rebin[self.line_x])
 
             self.line_lbl.setText('Marker: {} = {} Counts'.format(\
                 self.line_x, self.line_y))
-        self.line.sigPositionChanged.connect(line_change)
+        self.view.line.sigPositionChanged.connect(line_change)
 
-        # add response function for mouse click
-        def mouse_click(event):
-            if event.button() == QtCore.Qt.LeftButton:
-                pos = self.hist.mapFromScene(event.scenePos())
-                self.line.setValue(pos)
-        self.plot.scene().sigMouseClicked.connect(mouse_click)
+        # create initial ROI box
+        self.view.init_box()
         
     def init_data_grp(self):
         # create a group for data acq buttons
@@ -387,7 +384,8 @@ class MCBWidget(QtWidgets.QGroupBox):
             
             self.plot.setYRange(0, 31, padding=0)
             logsafe = np.maximum(1, self.rebin)
-            self.hist.setOpts(x0=np.arange(self.chans), height=np.log2(logsafe))
+            self.view.hist.setOpts(x0=np.arange(self.chans),\
+                height=np.log2(logsafe))
         def auto_click():
             self.mode = 'Auto'
             self.enable_btn(self.log_btn)
@@ -395,7 +393,7 @@ class MCBWidget(QtWidgets.QGroupBox):
             
             self.plot.setYRange(0, 1<<int(self.rebin.max()).bit_length(),\
                 padding=0)
-            self.hist.setOpts(x0=np.arange(self.chans), height=self.rebin)
+            self.view.hist.setOpts(x0=np.arange(self.chans), height=self.rebin)
         self.log_btn.clicked.connect(log_click)
         self.auto_btn.clicked.connect(auto_click)
         
@@ -415,7 +413,6 @@ class MCBWidget(QtWidgets.QGroupBox):
             
         # add response function for rebinning menu
         def chan_change():
-            old_chans = self.chans
             self.chans = int(self.chan_max / (1<<self.chan_box.currentIndex()))
             
             self.plot.setXRange(0, self.chans, padding=0)
@@ -423,14 +420,15 @@ class MCBWidget(QtWidgets.QGroupBox):
             if self.mode == 'Log':
                 self.plot.setYRange(0, 31, padding=0)
                 logsafe = np.maximum(1, self.rebin)
-                self.hist.setOpts(x0=np.arange(self.chans),\
+                self.view.hist.setOpts(x0=np.arange(self.chans),\
                     height=np.log2(logsafe))
             else:
                 self.plot.setYRange(0, 1<<int(self.rebin.max()).bit_length(),\
                     padding=0)
-                self.hist.setOpts(x0=np.arange(self.chans), height=self.rebin)
+                self.view.hist.setOpts(x0=np.arange(self.chans),\
+                    height=self.rebin)
 
-            self.line.setValue(self.line.value() * self.chans / old_chans)
+            self.view.set_chans(self.chans)
         self.chan_box.currentIndexChanged.connect(chan_change)
         
         # layout plot widgets
@@ -450,11 +448,12 @@ class MCBWidget(QtWidgets.QGroupBox):
         if self.mode == 'Log':
             self.plot.setYRange(0, 31, padding=0)
             logsafe = np.maximum(1, self.rebin)
-            self.hist.setOpts(x0=np.arange(self.chans), height=np.log2(logsafe))
+            self.view.hist.setOpts(x0=np.arange(self.chans),\
+                height=np.log2(logsafe))
         else:
             self.plot.setYRange(0, 1<<int(self.rebin.max()).bit_length(),\
                 padding=0)
-            self.hist.setOpts(x0=np.arange(self.chans), height=self.rebin)
+            self.view.hist.setOpts(x0=np.arange(self.chans), height=self.rebin)
         
         # enable/disable data buttons and preset boxes
         old_state = self.active
@@ -518,6 +517,18 @@ class MCBWidget(QtWidgets.QGroupBox):
     def disable_btn(self, btn):
         btn.setEnabled(False)
         btn.setStyleSheet('background-color: {0}'.format(self.gray))
+
+    def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Left:
+            new_pos = self.view.line.value() - 1
+            if new_pos >= 0:
+                self.view.line.setValue(new_pos)
+            self.view.hide_box()
+        elif event.key() == QtCore.Qt.Key_Right:
+            new_pos = self.view.line.value() + 1
+            if new_pos < self.chans:
+                self.view.line.setValue(new_pos)
+            self.view.hide_box()
         
     def is_active(self):
         return self.driver.is_active(self.hdet)
