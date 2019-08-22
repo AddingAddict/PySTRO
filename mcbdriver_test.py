@@ -59,6 +59,7 @@ class MCBDriver:
     def __init__(self):
         self.active = False
         self.buffer = np.zeros(2048)
+        self.roi_mask = np.array([False]*2048)
         self.true = 0
         self.live = 0
         self.true_preset = 0
@@ -67,6 +68,7 @@ class MCBDriver:
         self.lld = 0
         self.uld = 2047
         self.start_time = int(time())
+        self.window = (0, 2048)
         
     def __del__(self):
         pass
@@ -95,6 +97,10 @@ class MCBDriver:
             self.buffer = np.zeros(2048)
             self.true = 0
             self.live = 0
+        if cmd == 'CLEAR_ROI':
+            start_chan, num_chans = self.window
+            for i in range(num_chans):
+                self.roi_mask[start_chan + i] = False
         if cmd == 'SHOW_TRUE':
             resp = '$C' + str(self.true) + 'cccn'
         if cmd == 'SHOW_LIVE':
@@ -127,6 +133,16 @@ class MCBDriver:
             start_chan, num_chans, value = map(int, cmd[9:].split(','))
             for i in range(num_chans):
                 self.buffer[start_chan + i] = value
+        if cmd[:7] == 'SET_ROI':
+            start_chan, num_chans = map(int, cmd[8:].split(','))
+            for i in range(num_chans):
+                self.roi_mask[start_chan + i] = True
+        if cmd[:10] == 'SET_WINDOW':
+            if len(cmd) < 12:
+                self.window = (0, 2048)
+            else:
+                start_chan, num_chans = map(int, cmd[11:].split(','))
+                self.window = (start_chan, num_chans)
         return resp
         
     def get_config_max(self):
@@ -136,7 +152,7 @@ class MCBDriver:
         return 'test', 1
         
     def get_data(self, hdet, start_chan=0, num_chans=2048):
-        return self.buffer
+        return self.buffer, self.roi_mask
 
     def get_start_time(self, hdet):
         return self.start_time
