@@ -48,6 +48,7 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.sample = QtWidgets.QLineEdit()
         self.sample.setPlaceholderText('Sample Description')
 
+        # setup settings object and load previous settings
         self.settings = QtCore.QSettings('pystro', self.title)
         if self.settings.contains('sample'):
             self.sample.setText(self.settings.value('sample'))
@@ -62,6 +63,7 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.init_preset_grp()
         self.init_adc_grp()
         self.init_plot_grp()
+        self.init_calib_grp()
         
         # layout widgets
         self.left_layout = QtWidgets.QGridLayout()
@@ -80,6 +82,7 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.right_layout.addWidget(self.preset_grp)
         self.right_layout.addWidget(self.adc_grp)
         self.right_layout.addWidget(self.plot_grp)
+        self.right_layout.addWidget(self.calib_grp)
         self.right_layout.addWidget(QtWidgets.QWidget(), 10)
 
     def get_neutral_color(self):
@@ -297,8 +300,6 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.gate = self.get_gate()
         self.lld = self.get_lld()
         self.uld = self.get_uld()
-        self.lld_str = str(self.lld)
-        self.uld_str = str(self.uld)
         
         # create a group for ADC settings
         self.adc_grp = Spoiler(title='ADC Settings')
@@ -317,8 +318,8 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.gate_box.currentIndexChanged.connect(gate_change)
         
         # create discriminator textboxes
-        self.lld_txt = QtWidgets.QLineEdit(self.lld_str)
-        self.uld_txt = QtWidgets.QLineEdit(self.uld_str)
+        self.lld_txt = QtWidgets.QLineEdit(str(self.lld))
+        self.uld_txt = QtWidgets.QLineEdit(str(self.uld))
         self.lld_txt.setValidator(self.int_only)
         self.uld_txt.setValidator(self.int_only)
         self.lld_txt.setAlignment(QtCore.Qt.AlignRight)
@@ -328,36 +329,36 @@ class MCBWidget(QtWidgets.QGroupBox):
         
         # add response functions for discriminator textboxes
         def lld_change():
-            self.lld_str = self.lld_txt.text()
-            if self.lld_str == '':
+            lld_str = self.lld_txt.text()
+            if lld_str == '':
                 self.lld_txt.setStyleSheet(\
                     'background-color: {0}'.format(self.white))
                 self.lld = 0
                 self.set_lld(self.lld)
-            elif self.lld_str == '-' or int(self.lld_str) < 0\
-                    or int(self.lld_str) > self.chan_max:
+            elif lld_str == '-' or int(lld_str) < 0\
+                    or int(lld_str) >= self.chan_max:
                 self.lld_txt.setStyleSheet(\
                     'background-color: {0}'.format(self.red))
             else:
                 self.lld_txt.setStyleSheet(\
                     'background-color: {0}'.format(self.white))
-                self.lld = int(self.lld_str)
+                self.lld = int(lld_str)
                 self.set_lld(self.lld)
         def uld_change():
-            self.uld_str = self.uld_txt.text()
-            if self.uld_str == '':
+            uld_str = self.uld_txt.text()
+            if uld_str == '':
                 self.uld_txt.setStyleSheet(\
                     'background-color: {0}'.format(self.white))
                 self.uld = 0
                 self.set_uld(self.uld)
-            elif self.uld_str == '-' or int(self.uld_str) < 0\
-                    or int(self.uld_str) > self.chan_max:
+            elif uld_str == '-' or int(uld_str) < 0\
+                    or int(uld_str) >= self.chan_max:
                 self.uld_txt.setStyleSheet(\
                     'background-color: {0}'.format(self.red))
             else:
                 self.uld_txt.setStyleSheet(\
                     'background-color: {0}'.format(self.white))
-                self.uld = int(self.uld_str)
+                self.uld = int(uld_str)
                 self.set_uld(self.uld)
         self.lld_txt.textChanged.connect(lld_change)
         self.uld_txt.textChanged.connect(uld_change)
@@ -426,6 +427,158 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.plot_layout.addWidget(self.auto_btn, 1, 1)
         self.plot_layout.addWidget(self.chan_box, 2, 1)
         self.plot_grp.setContentLayout(self.plot_layout)
+
+    def init_calib_grp(self):
+        self.calibrated = False
+
+        self.chan1 = 0
+        self.chan2 = 0
+        self.chan2 = 0
+        self.energy1 = 0
+        self.energy2 = 0
+        self.energy3 = 0
+        self.units = ''
+
+        # create a group for calibrations
+        self.calib_grp = Spoiler(title='Calibration')
+        self.calib_layout = QtWidgets.QGridLayout()
+
+        # create calibration textboxes
+        self.chan1_txt = QtWidgets.QLineEdit()
+        self.chan2_txt = QtWidgets.QLineEdit()
+        self.chan3_txt = QtWidgets.QLineEdit()
+        self.energy1_txt = QtWidgets.QLineEdit()
+        self.energy2_txt = QtWidgets.QLineEdit()
+        self.energy3_txt = QtWidgets.QLineEdit()
+        self.units_txt = QtWidgets.QLineEdit()
+        self.chan1_txt.setValidator(self.int_only)
+        self.chan2_txt.setValidator(self.int_only)
+        self.chan3_txt.setValidator(self.int_only)
+        self.chan1_txt.setAlignment(QtCore.Qt.AlignRight)
+        self.chan2_txt.setAlignment(QtCore.Qt.AlignRight)
+        self.chan3_txt.setAlignment(QtCore.Qt.AlignRight)
+        self.energy1_txt.setValidator(self.float_only)
+        self.energy2_txt.setValidator(self.float_only)
+        self.energy3_txt.setValidator(self.float_only)
+        self.energy1_txt.setAlignment(QtCore.Qt.AlignRight)
+        self.energy2_txt.setAlignment(QtCore.Qt.AlignRight)
+        self.energy3_txt.setAlignment(QtCore.Qt.AlignRight)
+        self.units_txt.setPlaceholderText('keV')
+        self.energy1_txt.setMinimumWidth(70)
+        self.energy2_txt.setMinimumWidth(70)
+        self.energy3_txt.setMinimumWidth(70)
+
+        # add response functions to calibration textboxes
+        def chan1_change():
+            chan1_str = self.chan1_txt.text()
+            if chan1_str == '':
+                self.chan1_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.white))
+                self.chan1 = 0
+            elif chan1_str == '-' or int(chan1_str) < 0\
+                    or int(chan1_str) >= self.chan_max:
+                self.chan1_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.red))
+            else:
+                self.chan1_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.white))
+                self.chan1 = int(chan1_str)
+        def chan2_change():
+            chan2_str = self.chan2_txt.text()
+            if chan2_str == '':
+                self.chan2_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.white))
+                self.chan2 = 0
+            elif chan2_str == '-' or int(chan2_str) < 0\
+                    or int(chan2_str) >= self.chan_max:
+                self.chan2_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.red))
+            else:
+                self.chan2_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.white))
+                self.chan2 = int(chan2_str)
+        def chan3_change():
+            chan3_str = self.chan3_txt.text()
+            if chan3_str == '':
+                self.chan3_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.white))
+                self.chan3 = 0
+            elif chan3_str == '-' or int(chan3_str) < 0\
+                    or int(chan3_str) >= self.chan_max:
+                self.chan3_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.red))
+            else:
+                self.chan3_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.white))
+                self.chan3 = int(chan3_str)
+        def energy1_change():
+            energy1_str = self.energy1_txt.text()
+            if energy1_str == '':
+                self.energy1_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.white))
+                self.energy1 = 0
+            elif energy1_str == '-' or int(energy1_str) < 0:
+                self.energy1_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.red))
+            else:
+                self.energy1_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.white))
+                self.energy1 = int(energy1_str)
+        def energy2_change():
+            energy2_str = self.energy2_txt.text()
+            if energy2_str == '':
+                self.energy2_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.white))
+                self.energy2 = 0
+            elif energy2_str == '-' or int(energy2_str) < 0:
+                self.energy2_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.red))
+            else:
+                self.energy2_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.white))
+                self.energy2 = int(energy2_str)
+        def energy3_change():
+            energy3_str = self.energy3_txt.text()
+            if energy3_str == '':
+                self.energy3_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.white))
+                self.energy3 = 0
+            elif energy3_str == '-' or int(energy3_str) < 0:
+                self.energy3_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.red))
+            else:
+                self.energy3_txt.setStyleSheet(\
+                    'background-color: {0}'.format(self.white))
+                self.energy3 = int(energy3_str)
+        def units_change():
+            units_str = self.units_txt.text()
+            if units_str == '':
+                self.units = 'keV'
+            else:
+                self.units = units_str
+        self.chan1_txt.textChanged.connect(chan1_change)
+        self.chan2_txt.textChanged.connect(chan2_change)
+        self.chan3_txt.textChanged.connect(chan3_change)
+        self.energy1_txt.textChanged.connect(energy1_change)
+        self.energy2_txt.textChanged.connect(energy2_change)
+        self.energy3_txt.textChanged.connect(energy3_change)
+        self.units_txt.textChanged.connect(units_change)
+
+        # layout calibration widgets
+        self.calib_layout.addWidget(QtWidgets.QLabel('Channel'), 0, 0)
+        self.calib_layout.addWidget(QtWidgets.QLabel('Energy'), 0, 2)
+        self.calib_layout.addWidget(QtWidgets.QLabel('='), 1, 1)
+        self.calib_layout.addWidget(QtWidgets.QLabel('='), 2, 1)
+        self.calib_layout.addWidget(QtWidgets.QLabel('='), 3, 1)
+        self.calib_layout.addWidget(QtWidgets.QLabel('Units: '), 4, 0)
+        self.calib_layout.addWidget(self.chan1_txt, 1, 0)
+        self.calib_layout.addWidget(self.chan2_txt, 2, 0)
+        self.calib_layout.addWidget(self.chan3_txt, 3, 0)
+        self.calib_layout.addWidget(self.energy1_txt, 1, 2)
+        self.calib_layout.addWidget(self.energy2_txt, 2, 2)
+        self.calib_layout.addWidget(self.energy3_txt, 3, 2)
+        self.calib_layout.addWidget(self.units_txt, 4, 1, 1, 2)
+        self.calib_grp.setContentLayout(self.calib_layout)
         
     def update(self):
         self.counts, self.roi_mask = self.get_data()
@@ -488,7 +641,7 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.live_lbl.setText(self.live_str)
         self.dead_lbl.setText(self.dead_str)
 
-        # save MCB details
+        # save MCB settings
         self.settings.setValue('sample', self.sample.text())
         
     def enable_btn(self, btn):
