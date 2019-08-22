@@ -99,27 +99,38 @@ class PySTROWidget(QtWidgets.QWidget):
 
                 # make sure channels match
                 first_chan, last_chan = map(int, lines[11].split(' '))
-                assert last_chan+1 == mcb.chan_max,\
+                chan_max = mcb.chan_max
+                assert last_chan+1 == chan_max,\
                     'File and MCB have different channels'
 
                 # get data
-                for i in range(mcb.chan_max):
+                for i in range(chan_max):
                     mcb.set_data(start_chan=i, value=int(lines[12+i]))
 
+                # get ROI's
+                mcb.clear_roi(0, chan_max)
+                nroi = int(lines[13+chan_max][:-1])
+                for i in range(nroi):
+                    first_chan, last_chan = map(int, lines[14+chan_max+i]\
+                        .split(' '))
+                    mcb.set_roi(first_chan, last_chan-first_chan+1)
+
                 # get presets
-                pre_type = lines[-11]
+                pre_type = lines[15+chan_max+nroi]
                 if pre_type == 'Live Time\n':
-                    mcb.lpre_txt.setText(lines[-10][:-1] + '.00')
-                    if lines[-9][:-1] == '0':
+                    mcb.lpre_txt.setText(lines[16+chan_max+nroi][:-1] + '.00')
+                    if lines[17+chan_max+nroi][:-1] == '0':
                         mcb.rpre_txt.setText('')
                     else:
-                        mcb.rpre_txt.setText(lines[-9][:-1] + '.00')
+                        mcb.rpre_txt.setText(lines[17+chan_max+nroi][:-1] +\
+                            '.00')
                 elif pre_type == 'Real Time\n':
-                    mcb.rpre_txt.setText(lines[-10][:-1] + '.00')
-                    if lines[-9][:-1] == '0':
+                    mcb.rpre_txt.setText(lines[16+chan_max+nroi][:-1] + '.00')
+                    if lines[17+chan_max+nroi][:-1] == '0':
                         mcb.lpre_txt.setText('')
                     else:
-                        mcb.lpre_txt.setText(lines[-9][:-1] + '.00')
+                        mcb.lpre_txt.setText(lines[17+chan_max+nroi][:-1] +\
+                            '.00')
                 else:
                     mcb.lpre_txt.setText('')
                     mcb.rpre_txt.setText('')
@@ -169,9 +180,14 @@ class PySTROWidget(QtWidgets.QWidget):
                 for i in range(mcb.chan_max):
                     file.write(str(int(mcb.counts[i])).rjust(8) + '\n')
 
-                # TODO: currently unsupported
+                # write number of ROI's
+                rois = mcb.get_roi()
                 file.write('$ROI:\n' +\
-                    '0\n')
+                    str(len(rois)) + '\n')
+
+                # write ROI's
+                for roi in rois:
+                    file.write(str(roi[0]) + ' ' + str(roi[0]+roi[1]-1) + '\n')
 
                 # write presets
                 file.write('$PRESETS:\n')

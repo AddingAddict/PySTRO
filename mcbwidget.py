@@ -556,6 +556,14 @@ class MCBWidget(QtWidgets.QGroupBox):
         uld = int(resp[2:-4])
         return uld
 
+    def get_roi(self):
+        rois = []
+        resp = self.driver.comm(self.hdet, 'SHOW_ROI')
+        while int(resp[7:12]) > 0:
+            rois.append((int(resp[2:7]), int(resp[7:12])))
+            resp = self.driver.comm(self.hdet, 'SHOW_NEXT')
+        return rois
+
     def set_data(self, start_chan, num_chans=1, value=0):
         self.driver.comm(self.hdet, 'SET_DATA {}, {}, {}'.format(start_chan,\
             num_chans, value))
