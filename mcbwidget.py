@@ -519,7 +519,7 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.update()
 
     def get_data(self):
-        return self.driver.get_data(self.hdet)
+        return self.driver.get_data(self.hdet, 0, self.chan_max)
         
     def get_real(self):
         resp = self.driver.comm(self.hdet, 'SHOW_TRUE')

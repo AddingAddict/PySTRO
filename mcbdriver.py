@@ -109,8 +109,7 @@ class MCBDriver:
             byref(id), 0) == 1, 'Get Config Name Failed'
         return name.value.decode(), id.value
         
-    def get_data(self, hdet, start_chan=0, num_chans=2048):
-        assert start_chan + num_chans <= 2048, 'Invalid Parameters in Get Data'
+    def get_data(self, hdet, start_chan=0, num_chans=1):
         buffer = np.zeros(num_chans, dtype=np.int32)
         ret_chans = c_int16()
         data_mask = c_uint32()
