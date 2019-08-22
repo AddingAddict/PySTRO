@@ -7,8 +7,8 @@ import os.path
 class PySTROWidget(QtWidgets.QWidget):
     gray = '#cccccc'
     
-    def __init__(self):
-        QtWidgets.QWidget.__init__(self)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.layout = QtWidgets.QVBoxLayout()
         self.setLayout(self.layout)
         

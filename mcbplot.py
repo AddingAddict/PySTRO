@@ -4,12 +4,47 @@ import pyqtgraph.functions as fn
 import numpy as np
 import types
 
+class MCBPlot(pg.PlotWidget):
+    def __init__(self, chans, counts, roi_mask, **kwargs):
+        self.view = MCBViewBox(chans, counts, roi_mask)
+        super().__init__(viewBox=self.view, **kwargs)
+
+        ylim = 1<<int(counts.max()).bit_length()
+
+        self.setMouseEnabled(False, False)
+        self.hideAxis('bottom')
+        self.hideAxis('left')
+        self.setMinimumWidth(1024)
+        self.setXRange(0, chans, padding=0)
+        self.setYRange(0, ylim, padding=0)
+
+    def line(self):
+        return self.view.line
+
+    def box(self):
+        return self.view.box
+
+    def update(self, chans, counts, roi_mask, mode):
+        rebin = counts.reshape((chans, -1)).sum(axis=1)
+        roi_rebin_mask = roi_mask.reshape((chans, -1)).any(axis=1)
+        roi_rebin = np.where(roi_rebin_mask, rebin, 0)
+        
+        self.setXRange(0, chans, padding=0)
+        if mode == 'Log':
+            ylim = 31
+        else:
+            ylim = 1<<int(rebin.max()).bit_length()
+        self.setYRange(0, ylim, padding=0)
+        
+        self.view.update_hist(chans, rebin, roi_rebin, mode)
+        self.view.update_markers(chans, ylim)
+
 class MCBViewBox(pg.ViewBox):
     hist_color = (0, 191, 255)
-    roi_color = (255, 0, 0)
+    roi_color = (255, 63, 0)
 
-    def __init__(self, chans, counts, roi):
-        pg.ViewBox.__init__(self)
+    def __init__(self, chans, counts, roi_mask, **kwargs):
+        super().__init__(**kwargs)
         self.contextMenu = []
         self.chans = chans
         self.ylim = 1<<int(counts.max()).bit_length()
@@ -20,10 +55,10 @@ class MCBViewBox(pg.ViewBox):
         self.addItem(self.hist)
 
         # create ROI histogram
-        roi_counts = np.where(roi, counts, 0)
-        self.roi_hist = pg.BarGraphItem(x0=np.arange(chans), height=roi_counts, width=1,\
+        roi_counts = np.where(roi_mask, counts, 0)
+        self.roi = pg.BarGraphItem(x0=np.arange(chans), height=roi_counts, width=1,\
             pen=self.roi_color, brush=self.roi_color)
-        self.addItem(self.roi_hist)
+        self.addItem(self.roi)
 
         # create initial marker line
         self.line = pg.InfiniteLine(pos=0, pen='k', movable=True)
@@ -36,14 +71,22 @@ class MCBViewBox(pg.ViewBox):
         # hide ROI box when marker line is dragged
         self.line.sigDragged.connect(self.box.hide)
 
-    def update_hist(self, chans, counts, roi, mode):
-        pass
+    def update_hist(self, chans, rebin, roi_rebin, mode):
+        # plot based on number of channels and plotting mode
+        if mode == 'Log':
+            logsafe = np.maximum(1, rebin)
+            roi_logsafe = np.maximum(1, roi_rebin)
+            self.hist.setOpts(x0=np.arange(chans), height=np.log2(logsafe))
+            self.roi.setOpts(x0=np.arange(chans), height=np.log2(roi_logsafe))
+        else:
+            self.hist.setOpts(x0=np.arange(chans), height=rebin)
+            self.roi.setOpts(x0=np.arange(chans), height=roi_rebin)
 
-    def update_markers(self, new_chans, new_ylim):
+    def update_markers(self, chans, ylim):
         old_chans = self.chans
         old_ylim = self.ylim
-        self.chans = new_chans
-        self.ylim = new_ylim
+        self.chans = chans
+        self.ylim = ylim
 
         # update position of line
         self.line.setValue(self.line.value() * self.chans / old_chans)
@@ -87,7 +130,7 @@ class MCBROI(pg.ROI):
     sigClear = QtCore.Signal(object)
 
     def __init__(self, **kwargs):
-        pg.ROI.__init__(self, pos=(0,0), **kwargs)
+        super().__init__(pos=(0,0), **kwargs)
         self.setAcceptedMouseButtons(QtCore.Qt.RightButton)
         self.visible = False
         self.hide()
@@ -119,13 +162,6 @@ class MCBROI(pg.ROI):
         self.setPos((0,-1))
         self.setSize((0,0))
         self.visible = False
-
-    # override parent function to make hover highlight more bearable
-    def _makePen(self):
-        if self.mouseHovering:
-            return fn.mkPen(255, 0, 0)
-        else:
-            return self.pen
 
     # override parent function so left/mid click is ignored
     def hoverEvent(self, ev):

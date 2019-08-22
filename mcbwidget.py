@@ -1,5 +1,5 @@
 from mcbdriver import MCBDriver
-from mcbviewbox import MCBViewBox
+from mcbplot import MCBPlot
 from spoiler import Spoiler
 from PyQt5 import QtWidgets, QtGui, QtCore
 import pyqtgraph as pg
@@ -18,8 +18,8 @@ class MCBWidget(QtWidgets.QGroupBox):
         'ANTI': 2
     }
     
-    def __init__(self, mcb_driver, ndet, ):
-        QtWidgets.QGroupBox.__init__(self)
+    def __init__(self, mcb_driver, ndet, **kwargs):
+        super().__init__(**kwargs)
         self.setObjectName('MCBBox')
         self.setStyleSheet('QGroupBox#MCBBox{' +\
             'padding-top:15px; margin-top:-15px}')
@@ -83,25 +83,17 @@ class MCBWidget(QtWidgets.QGroupBox):
             btn_color.red(), btn_color.green(), btn_color.blue())
         
     def init_plotwidget(self):
-        self.counts, self.roi = self.get_data()
+        self.counts, self.roi_mask = self.get_data()
         self.chans = self.chan_max
         self.rebin = self.counts
         self.ylim = 1<<int(self.rebin.max()).bit_length()
 
-        # create MCB viewbox (with initial histogram and markers)
-        self.view = MCBViewBox(self.chans, self.counts, self.roi)
-        
-        # create plot window
-        self.plot = pg.PlotWidget(viewBox=self.view, enableMenu=False)
-        self.plot.setMouseEnabled(False, False)
-        self.plot.hideAxis('bottom')
-        self.plot.hideAxis('left')
-        self.plot.setMinimumWidth(1024)
-        self.plot.setXRange(0, self.chans, padding=0)
-        self.plot.setYRange(0, self.ylim, padding=0)
+        # create MCB plot widget (with initial histogram and markers)
+        self.plot = MCBPlot(self.chans, self.counts, self.roi_mask,\
+            enableMenu=False)
 
         # create line info label
-        self.line_x = int(self.view.line.value())
+        self.line_x = int(self.plot.line().value())
         self.line_y = int(self.rebin[self.line_x])
 
         self.line_lbl = QtWidgets.QLabel('Marker: {} = {} Counts'.format(\
@@ -109,32 +101,32 @@ class MCBWidget(QtWidgets.QGroupBox):
 
         # add response function for line position change
         def line_change():
-            self.line_x = int(self.view.line.value())
+            self.line_x = int(self.plot.line().value())
             self.line_y = int(self.rebin[self.line_x])
 
             self.line_lbl.setText('Marker: {} = {} Counts'.format(\
                 self.line_x, self.line_y))
-        self.view.line.sigPositionChanged.connect(line_change)
+        self.plot.line().sigPositionChanged.connect(line_change)
 
         # add response function for ROI menu actions
         def roi_mark():
-            pos = self.view.box.pos()
-            size = self.view.box.size()
+            pos = self.plot.box().pos()
+            size = self.plot.box().size()
             x0 = max(int(pos.x() * self.chan_max / self.chans), 0)
             x1 = min(int((pos.x() + size.x()) * self.chan_max / self.chans),\
                 self.chan_max-1)
 
             self.set_roi(x0, x1-x0+1)
         def roi_clear():
-            pos = self.view.box.pos()
-            size = self.view.box.size()
+            pos = self.plot.box().pos()
+            size = self.plot.box().size()
             x0 = max(int(pos.x() * self.chan_max / self.chans), 0)
             x1 = min(int((pos.x() + size.x()) * self.chan_max / self.chans),\
                 self.chan_max-1)
 
             self.clear_roi(x0, x1-x0+1)
-        self.view.box.sigMark.connect(roi_mark)
-        self.view.box.sigClear.connect(roi_clear)
+        self.plot.box().sigMark.connect(roi_mark)
+        self.plot.box().sigClear.connect(roi_clear)
         
     def init_data_grp(self):
         # create a group for data acq buttons
@@ -391,19 +383,12 @@ class MCBWidget(QtWidgets.QGroupBox):
             self.mode = 'Log'
             self.disable_btn(self.log_btn)
             self.enable_btn(self.auto_btn)
-            
-            self.plot.setYRange(0, 31, padding=0)
-            logsafe = np.maximum(1, self.rebin)
-            self.view.hist.setOpts(x0=np.arange(self.chans),\
-                height=np.log2(logsafe))
+            self.plot.update(self.chans, self.counts, self.roi_mask, self.mode)
         def auto_click():
             self.mode = 'Auto'
             self.enable_btn(self.log_btn)
             self.disable_btn(self.auto_btn)
-            
-            self.plot.setYRange(0, 1<<int(self.rebin.max()).bit_length(),\
-                padding=0)
-            self.view.hist.setOpts(x0=np.arange(self.chans), height=self.rebin)
+            self.plot.update(self.chans, self.counts, self.roi_mask, self.mode)
         self.log_btn.clicked.connect(log_click)
         self.auto_btn.clicked.connect(auto_click)
         
@@ -424,21 +409,7 @@ class MCBWidget(QtWidgets.QGroupBox):
         # add response function for rebinning menu
         def chan_change():
             self.chans = int(self.chan_max / (1<<self.chan_box.currentIndex()))
-            
-            self.plot.setXRange(0, self.chans, padding=0)
-            self.rebin = self.counts.reshape((self.chans, -1)).sum(axis=1)
-            if self.mode == 'Log':
-                self.ylim = 31
-                self.plot.setYRange(0, self.ylim, padding=0)
-                logsafe = np.maximum(1, self.rebin)
-                self.view.hist.setOpts(x0=np.arange(self.chans),\
-                    height=np.log2(logsafe))
-            else:
-                self.ylim = 1<<int(self.rebin.max()).bit_length()
-                self.view.hist.setOpts(x0=np.arange(self.chans),\
-                    height=self.rebin)
-            self.plot.setYRange(0, self.ylim, padding=0)
-            self.view.update_markers(self.chans, self.ylim)
+            self.plot.update(self.chans, self.counts, self.roi_mask, self.mode)
         self.chan_box.currentIndexChanged.connect(chan_change)
         
         # layout plot widgets
@@ -450,29 +421,10 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.plot_grp.setContentLayout(self.plot_layout)
         
     def update(self):
+        self.counts, self.roi_mask = self.get_data()
+
         # update plot
-        self.counts, self.roi = self.get_data()
-        self.rebin = self.counts.reshape((self.chans, -1)).sum(axis=1)
-        roi_counts = np.where(self.roi, self.counts, 0)
-        
-        self.plot.setXRange(0, self.chans, padding=0)
-        if self.mode == 'Log':
-            self.ylim = 31
-            self.plot.setYRange(0, self.ylim, padding=0)
-            logsafe = np.maximum(1, self.rebin)
-            roi_logsafe = np.maximum(1, roi_counts)
-            self.view.hist.setOpts(x0=np.arange(self.chans),\
-                height=np.log2(logsafe))
-            self.view.roi_hist.setOpts(x0=np.arange(self.chans),\
-                height=np.log2(roi_logsafe))
-        else:
-            self.ylim = 1<<int(self.rebin.max()).bit_length()
-            self.view.hist.setOpts(x0=np.arange(self.chans),\
-                height=self.rebin)
-            self.view.roi_hist.setOpts(x0=np.arange(self.chans),\
-                height=roi_counts)
-        self.plot.setYRange(0, self.ylim, padding=0)
-        self.view.update_markers(self.chans, self.ylim)
+        self.plot.update(self.chans, self.counts, self.roi_mask, self.mode)
         
         # enable/disable data buttons and preset boxes
         old_state = self.active
@@ -539,15 +491,15 @@ class MCBWidget(QtWidgets.QGroupBox):
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Left:
-            new_pos = self.view.line.value() - 1
+            new_pos = self.plot.line().value() - 1
             if new_pos >= 0:
-                self.view.line.setValue(new_pos)
-            self.view.box.hide()
+                self.plot.line().setValue(new_pos)
+            self.plot.box().hide()
         elif event.key() == QtCore.Qt.Key_Right:
-            new_pos = self.view.line.value() + 1
+            new_pos = self.plot.line().value() + 1
             if new_pos < self.chans:
-                self.view.line.setValue(new_pos)
-            self.view.box.hide()
+                self.plot.line().setValue(new_pos)
+            self.plot.box().hide()
         
     def is_active(self):
         return self.driver.is_active(self.hdet)
