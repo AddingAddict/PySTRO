@@ -92,6 +92,10 @@ class PySTROWidget(QtWidgets.QWidget):
                 file = open(file_name, 'r')
                 lines = file.readlines()
 
+                # get sample description
+                if lines[1][:-1] != 'No sample description was entered.':
+                    mcb.sample.setText(lines[1][:-1])
+
                 # get live/real time
                 live, real = map(int, lines[9].split(' '))
                 mcb.set_live(live * 1000)
@@ -153,10 +157,14 @@ class PySTROWidget(QtWidgets.QWidget):
             try:
                 file = open(file_name, 'w')
 
-                # TODO: currently unsupported
-                file.write('$SPEC_ID:\n' +\
-                    'No sample description was entered.\n' +\
-                    '$SPEC_REM:\n')
+                # write sample description
+                file.write('$SPEC_ID:\n')
+                sample = mcb.sample.text()
+                if sample == '':
+                    file.write('No sample description was entered.\n')
+                else:
+                    file.write(sample + '\n')
+                file.write('$SPEC_REM:\n')
 
                 # write MCB ID and name
                 file.write('DET# ' + str(mcb.id) + '\n' +\

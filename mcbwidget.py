@@ -45,6 +45,12 @@ class MCBWidget(QtWidgets.QGroupBox):
         # create label displaying MCB ID and name
         self.title = '{0:04d} {1}'.format(self.id, self.name)
         self.label = QtWidgets.QLabel(self.title)
+        self.sample = QtWidgets.QLineEdit()
+        self.sample.setPlaceholderText('Sample Description')
+
+        self.settings = QtCore.QSettings('pystro', self.title)
+        if self.settings.contains('sample'):
+            self.sample.setText(self.settings.value('sample'))
 
         # get neutral button color
         self.get_neutral_color()
@@ -58,15 +64,16 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.init_plot_grp()
         
         # layout widgets
-        self.left_layout = QtWidgets.QVBoxLayout()
+        self.left_layout = QtWidgets.QGridLayout()
         self.right_layout = QtWidgets.QVBoxLayout()
         
         self.layout.addLayout(self.left_layout, 20)
         self.layout.addLayout(self.right_layout, 1)
         
-        self.left_layout.addWidget(self.label)
-        self.left_layout.addWidget(self.plot)
-        self.left_layout.addWidget(self.line_lbl)
+        self.left_layout.addWidget(self.label, 0, 0)
+        self.left_layout.addWidget(self.sample, 0, 1)
+        self.left_layout.addWidget(self.plot, 1, 0, 1, 2)
+        self.left_layout.addWidget(self.line_lbl, 2, 0, 1, 2)
         
         self.right_layout.addWidget(self.data_grp)
         self.right_layout.addWidget(self.time_grp)
@@ -480,6 +487,9 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.real_lbl.setText(self.real_str)
         self.live_lbl.setText(self.live_str)
         self.dead_lbl.setText(self.dead_str)
+
+        # save MCB details
+        self.settings.setValue('sample', self.sample.text())
         
     def enable_btn(self, btn):
         btn.setEnabled(True)
