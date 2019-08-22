@@ -59,7 +59,7 @@ class MCBDriver:
     def __init__(self):
         self.active = False
         self.buffer = np.zeros(2048)
-        self.roi_mask = np.array([False]*2048)
+        self.roi_mask = np.full(2048, False)
         self.true = 0
         self.live = 0
         self.true_preset = 0
