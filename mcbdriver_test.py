@@ -102,19 +102,63 @@ class MCBDriver:
             for i in range(num_chans):
                 self.roi_mask[start_chan + i] = False
         if cmd == 'SHOW_TRUE':
-            resp = '$C' + str(self.true) + 'cccn'
+            resp = '$G{0:010d}cccn'.format(self.true)
         if cmd == 'SHOW_LIVE':
-            resp = '$C' + str(self.live) + 'cccn'
+            resp = '$G{0:010d}cccn'.format(self.live)
         if cmd == 'SHOW_TRUE_PRESET':
-            resp = '$C' + str(self.true_preset) + 'cccn'
+            resp = '$G{0:010d}cccn'.format(self.true_preset)
         if cmd == 'SHOW_LIVE_PRESET':
-            resp = '$C' + str(self.live_preset) + 'cccn'
+            resp = '$G{0:010d}cccn'.format(self.live_preset)
         if cmd == 'SHOW_GATE':
             resp = '$F0' + self.gate + 'n'
         if cmd == 'SHOW_LLD':
-            resp = '$C' + str(self.lld) + 'cccn'
+            resp = '$C{0:05d}cccn'.format(self.lld)
         if cmd == 'SHOW_ULD':
-            resp = '$C' + str(self.uld) + 'cccn'
+            resp = '$C{0:05d}cccn'.format(self.uld)
+        if cmd == 'SHOW_ROI':
+            self.reached_end = False
+            self.roi_search = 0
+            while not self.roi_mask[self.roi_search]:
+                if self.roi_search == 2047:
+                    self.reached_end = True
+                    break
+                self.roi_search += 1
+            if not self.reached_end:
+                start_chan = self.roi_search
+                while self.roi_mask[self.roi_search]:
+                    if self.roi_search == 2047:
+                        self.reached_end = True
+                        break
+                    self.roi_search += 1
+                if not self.reached_end:
+                    num_chans = self.roi_search-start_chan
+                else:
+                    num_chans = 2048-start_chan
+            else:
+                start_chan = 0
+                num_chans = 0
+            resp = '$D{0:05d}{1:05d}cccn'.format(start_chan, num_chans)
+        if cmd == 'SHOW_NEXT':
+            while not self.roi_mask[self.roi_search]:
+                if self.roi_search == 2047:
+                    self.reached_end = True
+                    break
+                self.roi_search += 1
+            if not self.reached_end:
+                start_chan = self.roi_search
+                while self.roi_mask[self.roi_search]:
+                    if self.roi_search == 2047:
+                        self.reached_end = True
+                        break
+                    self.roi_search += 1
+                if not self.reached_end:
+                    num_chans = self.roi_search-start_chan
+                else:
+                    num_chans = 2048-start_chan
+            else:
+                start_chan = 0
+                num_chans = 0
+            resp = '$D{0:05d}{1:05d}cccn'.format(start_chan, num_chans)
         if cmd[:9] == 'SET_TRUE ':
             self.true = int(cmd[9:])
         if cmd[:9] == 'SET_LIVE ':
