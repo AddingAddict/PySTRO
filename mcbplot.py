@@ -6,17 +6,22 @@ import types
 
 class MCBPlot(pg.PlotWidget):
     def __init__(self, chans, counts, roi_mask, **kwargs):
-        self.view = MCBViewBox(chans, counts, roi_mask)
+        self.rebin = counts.reshape((chans, -1)).sum(axis=1)
+        roi_rebin_mask = roi_mask.reshape((chans, -1)).any(axis=1)
+        self.roi_rebin = np.where(roi_rebin_mask, self.rebin, 0)
+
+        self.view = MCBViewBox(chans, self.rebin, self.roi_rebin)
         super().__init__(viewBox=self.view, **kwargs)
 
-        ylim = 1<<int(counts.max()).bit_length()
+        self.chans = chans
+        self.ylim = 1<<int(counts.max()).bit_length()
 
         self.setMouseEnabled(False, False)
         self.hideAxis('bottom')
         self.hideAxis('left')
         self.setMinimumWidth(1024)
-        self.setXRange(0, chans, padding=0)
-        self.setYRange(0, ylim, padding=0)
+        self.setXRange(0, self.chans, padding=0)
+        self.setYRange(0, self.ylim, padding=0)
 
     def line(self):
         return self.view.line
@@ -24,39 +29,65 @@ class MCBPlot(pg.PlotWidget):
     def box(self):
         return self.view.box
 
-    def update(self, chans, counts, roi_mask, mode):
-        rebin = counts.reshape((chans, -1)).sum(axis=1)
-        roi_rebin_mask = roi_mask.reshape((chans, -1)).any(axis=1)
-        roi_rebin = np.where(roi_rebin_mask, rebin, 0)
+    def hist(self):
+        return self.view.hist
 
+    def roi(self):
+        return self.view.roi
+
+    def update(self, chans, counts, roi_mask, mode):
+        self.rebin = counts.reshape((chans, -1)).sum(axis=1)
+        roi_rebin_mask = roi_mask.reshape((chans, -1)).any(axis=1)
+        self.roi_rebin = np.where(roi_rebin_mask, self.rebin, 0)
+
+        # update plot ranges
         self.setXRange(0, chans, padding=0)
         if mode == 'Log':
             ylim = 31
         else:
-            ylim = 1<<int(rebin.max()).bit_length()
+            ylim = 1<<int(self.rebin.max()).bit_length()
         self.setYRange(0, ylim, padding=0)
 
-        self.view.update_hist(chans, rebin, roi_rebin, mode)
-        self.view.update_markers(chans, ylim)
+        # update histograms
+        if mode == 'Log':
+            logsafe = np.maximum(1, self.rebin)
+            roi_logsafe = np.maximum(1, self.roi_rebin)
+            self.hist().setOpts(x0=np.arange(chans), height=np.log2(logsafe))
+            self.roi().setOpts(x0=np.arange(chans), height=np.log2(roi_logsafe))
+        else:
+            self.hist().setOpts(x0=np.arange(chans), height=self.rebin)
+            self.roi().setOpts(x0=np.arange(chans), height=self.roi_rebin)
+
+        old_chans = self.chans
+        old_ylim = self.ylim
+        self.chans = chans
+        self.ylim = ylim
+
+        # update position of line
+        self.line().setValue(self.line().value() * self.chans / old_chans)
+
+        # update position of box
+        if self.box().visible:
+            self.box().setPos((self.box().pos().x() * self.chans / old_chans,\
+                self.box().pos().y() * self.ylim / old_ylim))
+            self.box().setSize((self.box().size().x() * self.chans / old_chans,\
+                self.box().size().y() * self.ylim / old_ylim))
 
 class MCBViewBox(pg.ViewBox):
     hist_color = (0, 191, 255)
     roi_color = (255, 63, 0)
 
-    def __init__(self, chans, counts, roi_mask, **kwargs):
+    def __init__(self, chans, rebin, roi_rebin, **kwargs):
         super().__init__(**kwargs)
         self.contextMenu = []
-        self.chans = chans
-        self.ylim = 1<<int(counts.max()).bit_length()
 
         # create initial histogram
-        self.hist = pg.BarGraphItem(x0=np.arange(chans), height=counts, width=1,\
+        self.hist = pg.BarGraphItem(x0=np.arange(chans), height=rebin, width=1,\
             pen=self.hist_color, brush=self.hist_color)
         self.addItem(self.hist)
 
         # create ROI histogram
-        roi_counts = np.where(roi_mask, counts, 0)
-        self.roi = pg.BarGraphItem(x0=np.arange(chans), height=roi_counts, width=1,\
+        self.roi = pg.BarGraphItem(x0=np.arange(chans), height=roi_rebin, width=1,\
             pen=self.roi_color, brush=self.roi_color)
         self.addItem(self.roi)
 
@@ -70,33 +101,6 @@ class MCBViewBox(pg.ViewBox):
 
         # hide ROI box when marker line is dragged
         self.line.sigDragged.connect(self.box.hide)
-
-    def update_hist(self, chans, rebin, roi_rebin, mode):
-        # plot based on number of channels and plotting mode
-        if mode == 'Log':
-            logsafe = np.maximum(1, rebin)
-            roi_logsafe = np.maximum(1, roi_rebin)
-            self.hist.setOpts(x0=np.arange(chans), height=np.log2(logsafe))
-            self.roi.setOpts(x0=np.arange(chans), height=np.log2(roi_logsafe))
-        else:
-            self.hist.setOpts(x0=np.arange(chans), height=rebin)
-            self.roi.setOpts(x0=np.arange(chans), height=roi_rebin)
-
-    def update_markers(self, chans, ylim):
-        old_chans = self.chans
-        old_ylim = self.ylim
-        self.chans = chans
-        self.ylim = ylim
-
-        # update position of line
-        self.line.setValue(self.line.value() * self.chans / old_chans)
-
-        # update position of box
-        if self.box.visible:
-            self.box.setPos((self.box.pos().x() * self.chans / old_chans,\
-                self.box.pos().y() * self.ylim / old_ylim))
-            self.box.setSize((self.box.size().x() * self.chans / old_chans,\
-                self.box.size().y() * self.ylim / old_ylim))
 
     def mouseClickEvent(self, ev):
         if ev.button() == QtCore.Qt.LeftButton:
