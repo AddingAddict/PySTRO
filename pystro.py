@@ -3,7 +3,7 @@ from PyQt5 import QtWidgets
 import pyqtgraph as pg
 
 # set background and foreground colors
-pg.setConfigOption('background', 'w')
+pg.setConfigOption('background', (223, 223, 223))
 pg.setConfigOption('foreground', 'k')
 
 app = QtWidgets.QApplication([])
