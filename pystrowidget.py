@@ -115,34 +115,34 @@ class PySTROWidget(QtWidgets.QWidget):
 
                 # get ROI's
                 mcb.clear_roi(0, chan_max)
-                nroi = int(lines[13+chan_max][:-1])
-                for i in range(nroi):
+                nrois = int(lines[13+chan_max][:-1])
+                for i in range(nrois):
                     first_chan, last_chan = map(int, lines[14+chan_max+i]\
                         .split(' '))
                     mcb.set_roi(first_chan, last_chan-first_chan+1)
 
                 # get presets
-                pre_type = lines[15+chan_max+nroi]
+                pre_type = lines[15+chan_max+nrois]
                 if pre_type == 'Live Time\n':
-                    mcb.lpre_txt.setText(lines[16+chan_max+nroi][:-1] + '.00')
-                    if lines[17+chan_max+nroi][:-1] == '0':
+                    mcb.lpre_txt.setText(lines[16+chan_max+nrois][:-1] + '.00')
+                    if lines[17+chan_max+nrois][:-1] == '0':
                         mcb.rpre_txt.setText('')
                     else:
-                        mcb.rpre_txt.setText(lines[17+chan_max+nroi][:-1] +\
+                        mcb.rpre_txt.setText(lines[17+chan_max+nrois][:-1] +\
                             '.00')
                 elif pre_type == 'Real Time\n':
-                    mcb.rpre_txt.setText(lines[16+chan_max+nroi][:-1] + '.00')
-                    if lines[17+chan_max+nroi][:-1] == '0':
+                    mcb.rpre_txt.setText(lines[16+chan_max+nrois][:-1] + '.00')
+                    if lines[17+chan_max+nrois][:-1] == '0':
                         mcb.lpre_txt.setText('')
                     else:
-                        mcb.lpre_txt.setText(lines[17+chan_max+nroi][:-1] +\
+                        mcb.lpre_txt.setText(lines[17+chan_max+nrois][:-1] +\
                             '.00')
                 else:
                     mcb.lpre_txt.setText('')
                     mcb.rpre_txt.setText('')
 
                 # get calibration
-                c, b, a, units = lines[22+chan_max+nroi].split(' ')
+                c, b, a, units = lines[22+chan_max+nrois].split(' ')
                 a = float(a)
                 b = float(b)
                 c = float(c)
@@ -193,80 +193,80 @@ class PySTROWidget(QtWidgets.QWidget):
             mcb = self.mcbs[nmcb]
             file_name, file_type = QtGui.QFileDialog.getSaveFileName(self,\
                 'Save File', filter='ASCII (*.Spe);;All Files (*)')
-            # try:
-            file = open(file_name, 'w')
+            try:
+                file = open(file_name, 'w')
 
-            # write sample description
-            file.write('$SPEC_ID:\n')
-            sample = mcb.sample.text()
-            if sample == '':
-                file.write('No sample description was entered.\n')
-            else:
-                file.write(sample + '\n')
-            file.write('$SPEC_REM:\n')
+                # write sample description
+                file.write('$SPEC_ID:\n')
+                sample = mcb.sample.text()
+                if sample == '':
+                    file.write('No sample description was entered.\n')
+                else:
+                    file.write(sample + '\n')
+                file.write('$SPEC_REM:\n')
 
-            # write MCB ID and name
-            file.write('DET# ' + str(mcb.id) + '\n' +\
-                'DETDESC# ' + mcb.name + '\n')
+                # write MCB ID and name
+                file.write('DET# ' + str(mcb.id) + '\n' +\
+                    'DETDESC# ' + mcb.name + '\n')
 
-            # write start date and time
-            file.write(('AP# Pystro\n' +\
-                '$DATE_MEA:\n' +\
-                mcb.start_datetime.strftime('%m/%d/%Y %H:%M:%S') + '\n'))
+                # write start date and time
+                file.write(('AP# Pystro\n' +\
+                    '$DATE_MEA:\n' +\
+                    mcb.start_datetime.strftime('%m/%d/%Y %H:%M:%S') + '\n'))
 
-            # write live/real time
-            file.write('$MEAS_TIM:\n' +\
-                '{} {}\n'.format(int(mcb.live / 1000),\
-                int(mcb.real / 1000)))
+                # write live/real time
+                file.write('$MEAS_TIM:\n' +\
+                    '{} {}\n'.format(int(mcb.live / 1000),\
+                    int(mcb.real / 1000)))
 
-            # write number of channels
-            file.write('$DATA:\n' +\
-                '0 ' + str(mcb.chan_max-1) + '\n')
+                # write number of channels
+                file.write('$DATA:\n' +\
+                    '0 ' + str(mcb.chan_max-1) + '\n')
 
-            # write data
-            for i in range(mcb.chan_max):
-                file.write(str(int(mcb.counts[i])).rjust(8) + '\n')
+                # write data
+                for i in range(mcb.chan_max):
+                    file.write(str(int(mcb.counts[i])).rjust(8) + '\n')
 
-            # write number of ROI's
-            rois = mcb.get_roi()
-            file.write('$ROI:\n' +\
-                '{} \n'.format(len(rois)))
+                # write number of ROI's
+                rois = mcb.get_roi()
+                file.write('$ROI:\n' +\
+                    '{} \n'.format(len(rois)))
 
-            # write ROI's
-            for roi in rois:
-                file.write(str(roi[0]) + ' ' + str(roi[0]+roi[1]-1) + '\n')
+                # write ROI's
+                for roi in rois:
+                    file.write(str(roi[0]) + ' ' + str(roi[0]+roi[1]-1) + '\n')
 
-            # write presets
-            file.write('$PRESETS:\n')
-            if mcb.lpre == 0 and mcb.rpre == 0:
-                file.write('None\n' +\
-                '0\n' +\
-                '0\n')
-            elif mcb.rpre == 0 or mcb.lpre > mcb.rpre:
-                file.write('Live Time\n' +\
-                '{}\n'.format(int(mcb.lpre / 1000)) +\
-                '{}\n'.format(int(mcb.rpre / 1000)))
-            else:
-                file.write('Real Time\n' +\
-                '{}\n'.format(int(mcb.rpre / 1000)) +\
-                '{}\n'.format(int(mcb.lpre / 1000)))
+                # write presets
+                file.write('$PRESETS:\n')
+                if mcb.lpre == 0 and mcb.rpre == 0:
+                    file.write('None\n' +\
+                    '0\n' +\
+                    '0\n')
+                elif mcb.rpre == 0 or mcb.lpre > mcb.rpre:
+                    file.write('Live Time\n' +\
+                    '{}\n'.format(int(mcb.lpre / 1000)) +\
+                    '{}\n'.format(int(mcb.rpre / 1000)))
+                else:
+                    file.write('Real Time\n' +\
+                    '{}\n'.format(int(mcb.rpre / 1000)) +\
+                    '{}\n'.format(int(mcb.lpre / 1000)))
 
-            # write calibration
-            file.write('$ENER_FIT:\n' +\
-                '{0:.6f} {1:.6f}\n'.format(mcb.c, mcb.b) +\
-                '$MCA_CAL:\n' +\
-                '3\n' +\
-                '{0:.6E} {1:.6E} {2:.6E} {3}\n'.format(mcb.c, mcb.b, mcb.a,\
-                    mcb.units))
+                # write calibration
+                file.write('$ENER_FIT:\n' +\
+                    '{0:.6f} {1:.6f}\n'.format(mcb.c, mcb.b) +\
+                    '$MCA_CAL:\n' +\
+                    '3\n' +\
+                    '{0:.6E} {1:.6E} {2:.6E} {3}\n'.format(mcb.c, mcb.b, mcb.a,\
+                        mcb.units))
 
-            # TODO: currently unsupported
-            file.write('$SHAPE_CAL:\n' +\
-                '3\n' +\
-                '0.000000E+000 0.000000E+000 0.000000E+000\n')
+                # TODO: currently unsupported
+                file.write('$SHAPE_CAL:\n' +\
+                    '3\n' +\
+                    '0.000000E+000 0.000000E+000 0.000000E+000\n')
 
-            file.close()
-            # except:
-            #     pass
+                file.close()
+            except:
+                pass
         self.open_btn.clicked.connect(open_click)
         self.save_btn.clicked.connect(save_click)
 
