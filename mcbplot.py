@@ -28,14 +28,14 @@ class MCBPlot(pg.PlotWidget):
         rebin = counts.reshape((chans, -1)).sum(axis=1)
         roi_rebin_mask = roi_mask.reshape((chans, -1)).any(axis=1)
         roi_rebin = np.where(roi_rebin_mask, rebin, 0)
-        
+
         self.setXRange(0, chans, padding=0)
         if mode == 'Log':
             ylim = 31
         else:
             ylim = 1<<int(rebin.max()).bit_length()
         self.setYRange(0, ylim, padding=0)
-        
+
         self.view.update_hist(chans, rebin, roi_rebin, mode)
         self.view.update_markers(chans, ylim)
 
@@ -178,7 +178,7 @@ class MCBROI(pg.ROI):
             ev.acceptClicks(QtCore.Qt.RightButton)
         else:
             self.setMouseHover(False)
-        
+
     # override parent function to open custom menu
     def mouseClickEvent(self, ev):
         if ev.button() == QtCore.Qt.RightButton:

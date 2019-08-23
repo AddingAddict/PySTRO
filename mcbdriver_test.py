@@ -69,22 +69,22 @@ class MCBDriver:
         self.uld = 2047
         self.start_time = int(time())
         self.window = (0, 2048)
-        
+
     def __del__(self):
         pass
-        
+
     def get_det_length(self, hdet):
         return 2048
 
     def get_last_error(self):
         return '', '', ''
-        
+
     def open_detector(self, ndet):
         return 0
-        
+
     def close_detector(self, hdet):
         pass
-        
+
     def comm(self, hdet, cmd):
         resp = ''
         if cmd == 'START':
@@ -144,18 +144,18 @@ class MCBDriver:
                 start_chan, num_chans = map(int, cmd[11:].split(','))
                 self.window = (start_chan, num_chans)
         return resp
-        
+
     def get_config_max(self):
         return 1
-        
+
     def get_config_name(self, ndet):
         return 'test', 1
-        
+
     def get_data(self, hdet, start_chan=0, num_chans=2048):
         return self.buffer, self.roi_mask
 
     def get_start_time(self, hdet):
         return self.start_time
-            
+
     def is_active(self, hdet):
         return self.active

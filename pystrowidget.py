@@ -6,23 +6,23 @@ import os.path
 
 class PySTROWidget(QtWidgets.QWidget):
     gray = '#cccccc'
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.layout = QtWidgets.QVBoxLayout()
         self.setLayout(self.layout)
-        
+
         # initialize driver and get number of MCBs
         self.driver = MCBDriver()
 
         # get neutral button color
         self.get_neutral_color()
-        
+
         # initialize sections of PySTROWidget
         self.init_mcb_grp()
         self.init_file_grp()
         self.init_data_grp()
-        
+
         # layout widgets
         self.top_layout = QtWidgets.QHBoxLayout()
         self.bottom_layout = QtWidgets.QVBoxLayout()
@@ -36,7 +36,7 @@ class PySTROWidget(QtWidgets.QWidget):
 
         for mcb in self.mcbs:
             self.bottom_layout.addWidget(mcb)
-        
+
         # create QTimers to do updates
         self.timer_mcb = QtCore.QTimer()
         self.timer_mcb.timeout.connect(self.update_mcb)
@@ -55,12 +55,12 @@ class PySTROWidget(QtWidgets.QWidget):
 
     def init_mcb_grp(self):
         self.det_max = self.driver.get_config_max()
-        
+
         # connect with MCBs and _layout MCBWidgets
         self.mcbs = []
         for n in range(self.det_max):
             self.mcbs.append(MCBWidget(self.driver, ndet=n+1))
-        
+
     def init_file_grp(self):
         # create a group for file i/o buttons
         self.file_grp = QtWidgets.QGroupBox('Open/Save File')
@@ -71,11 +71,11 @@ class PySTROWidget(QtWidgets.QWidget):
         self.mcb_box = QtWidgets.QComboBox()
         for mcb in self.mcbs:
             self.mcb_box.addItem(mcb.title)
-        
+
         # create file i/o buttons
         self.open_btn = QtWidgets.QPushButton('')
         self.save_btn = QtWidgets.QPushButton('')
-        
+
         # add icons to file i/o buttons
         self.open_btn.setIcon(QtGui.QIcon('icons/open.png'))
         self.save_btn.setIcon(QtGui.QIcon('icons/save.png'))
@@ -227,7 +227,7 @@ class PySTROWidget(QtWidgets.QWidget):
                 pass
         self.open_btn.clicked.connect(open_click)
         self.save_btn.clicked.connect(save_click)
-        
+
         # layout master data acq buttons
         self.file_layout.addWidget(QtWidgets.QLabel('MCB to Open/Save:'), 0, 0)
         self.file_layout.addWidget(self.mcb_box, 1, 0)
@@ -239,17 +239,17 @@ class PySTROWidget(QtWidgets.QWidget):
         self.data_grp = QtWidgets.QGroupBox('Master Data Acquisition (All MCBs)')
         self.data_layout = QtWidgets.QHBoxLayout()
         self.data_grp.setLayout(self.data_layout)
-        
+
         # create master data acq buttons
         self.start_btn = QtWidgets.QPushButton('')
         self.stop_btn = QtWidgets.QPushButton('')
         self.clear_btn = QtWidgets.QPushButton('')
-        
+
         # get neutral button color
         btn_color = self.start_btn.palette().color(QtGui.QPalette.Background)
         self.neutral = '#{0:02x}{0:02x}{0:02x}'.format(\
             btn_color.red(), btn_color.green(), btn_color.blue())
-        
+
         # add icons to master data acq buttons
         self.start_btn.setIcon(QtGui.QIcon('icons/start.png'))
         self.stop_btn.setIcon(QtGui.QIcon('icons/stop.png'))
@@ -257,27 +257,27 @@ class PySTROWidget(QtWidgets.QWidget):
         self.start_btn.setIconSize(QtCore.QSize(40,40))
         self.stop_btn.setIconSize(QtCore.QSize(40,40))
         self.clear_btn.setIconSize(QtCore.QSize(40,40))
-        
+
         # add response functions for master data acq buttons
         self.start_btn.clicked.connect(self.start)
         self.stop_btn.clicked.connect(self.stop)
         self.clear_btn.clicked.connect(self.clear)
-        
+
         # layout master data acq buttons
         self.data_layout.addWidget(self.start_btn)
         self.data_layout.addWidget(self.stop_btn)
         self.data_layout.addWidget(self.clear_btn)
-        
+
         # enable/disable data buttons
         self.active_mcbs = [mcb.active for mcb in self.mcbs]
         self.all_active = all(self.active_mcbs)
         self.none_active = not any(self.active_mcbs)
-        
+
         if self.all_active:
             self.disable_btn(self.start_btn)
         if self.none_active:
             self.disable_btn(self.stop_btn)
-            
+
         self.start_btn.setStyleSheet(\
             'QLineEdit { background-color: #ffffff }')
 
@@ -286,7 +286,7 @@ class PySTROWidget(QtWidgets.QWidget):
         old_active = self.active_mcbs
         self.active_mcbs = [mcb.active for mcb in self.mcbs]
         state_changed = (self.active_mcbs != old_active)
-        
+
         if state_changed:
             self.all_active = all(self.active_mcbs)
             self.none_active = not any(self.active_mcbs)
@@ -299,29 +299,29 @@ class PySTROWidget(QtWidgets.QWidget):
             else:
                 self.enable_btn(self.start_btn)
                 self.enable_btn(self.stop_btn)
-        
+
     def update_mcb(self):
         # update mcb widgets
         for mcb in self.mcbs:
             mcb.update()
-        
+
     def enable_btn(self, btn):
         btn.setEnabled(True)
         btn.setStyleSheet('background-color: {0}'.format(self.neutral))
-        
+
     def disable_btn(self, btn):
         btn.setEnabled(False)
         btn.setStyleSheet('background-color: {0}'.format(self.gray))
-            
+
     def start(self):
         for mcb in self.mcbs:
             mcb.start()
-            
+
         # enable/disable data buttons
         old_active = self.active_mcbs
         self.active_mcbs = [mcb.active for mcb in self.mcbs]
         state_changed = (self.active_mcbs != old_active)
-        
+
         if state_changed:
             self.all_active = all(self.active_mcbs)
             self.none_active = not any(self.active_mcbs)
@@ -334,15 +334,15 @@ class PySTROWidget(QtWidgets.QWidget):
             else:
                 self.enable_btn(self.start_btn)
                 self.enable_btn(self.stop_btn)
-            
+
     def stop(self):
         for mcb in self.mcbs:
             mcb.stop()
-            
+
         self.update_self()
-            
+
     def clear(self):
         for mcb in self.mcbs:
             mcb.clear()
-            
+
         self.update_self()

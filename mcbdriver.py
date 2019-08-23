@@ -60,10 +60,10 @@ class MCBDriver:
         #### the driver file mcbcio32.dll is what makes this program windows only ####
         self.driver = windll.LoadLibrary(r'C:\windows\system32\mcbcio32.dll')
         assert self.driver.MIOStartup() == 1, 'Startup Failed'
-        
+
     def __del__(self):
         assert self.driver.MIOCleanup() == 1, 'Cleanup Failed'
-        
+
     def get_det_length(self, hdet):
         return self.driver.MIOGetDetLength(hdet)
 
@@ -71,7 +71,7 @@ class MCBDriver:
         macro_err = c_int()
         micro_err = c_int()
         error = self.driver.MIOGetLastError(byref(macro_err), byref(micro_err))
-        
+
         err_msg = self.error_codes[error]
         mac_msg = self.macro_codes[macro_err.value]
         if macro_err.value == 129 or macro_err.value == 131:
@@ -79,28 +79,28 @@ class MCBDriver:
         else:
             mic_msg = self.micro_codes[micro_err.value]
         return err_msg, mac_msg, mic_msg
-        
+
     def open_detector(self, ndet):
         hdet = self.driver.MIOOpenDetector(ndet, '', '')
         assert hdet > 0, 'Open Detector Failed'
         return hdet
-        
+
     def close_detector(self, hdet):
         assert self.driver.MIOCloseDetector(hdet) == 1, 'Close Detector Failed'
-        
+
     def comm(self, hdet, cmd):
         max_resp = 128
         resp = create_string_buffer(max_resp)
         assert self.driver.MIOComm(hdet, cmd.encode(), '', '', max_resp,\
             resp, 0) == 1, 'Command Failed'
         return resp.value.decode()
-        
+
     def get_config_max(self):
         det_max = c_int32()
         assert self.driver.MIOGetConfigMax('', byref(det_max)) == 1,\
             'Get Config Max Failed'
         return det_max.value
-        
+
     def get_config_name(self, ndet):
         name_max = 128
         name = create_string_buffer(name_max)
@@ -108,7 +108,7 @@ class MCBDriver:
         assert self.driver.MIOGetConfigName(ndet, '', name_max, name,\
             byref(id), 0) == 1, 'Get Config Name Failed'
         return name.value.decode(), id.value
-        
+
     def get_data(self, hdet, start_chan=0, num_chans=1):
         buffer = np.zeros(num_chans, dtype=np.int32)
         ret_chans = c_int16()
@@ -124,6 +124,6 @@ class MCBDriver:
     def get_start_time(self, hdet):
         current_time = c_long(int(time()))
         return self.driver.MIOGetStartTime(hdet, byref(current_time))
-            
+
     def is_active(self, hdet):
         return self.driver.MIOIsActive(hdet) == 1
