@@ -303,7 +303,7 @@ class PySTROWidget(QtWidgets.QWidget):
     def update_mcb(self):
         # update mcb widgets
         for mcb in self.mcbs:
-            mcb.update()
+            mcb.update_mcb()
 
     def enable_btn(self, btn):
         btn.setEnabled(True)

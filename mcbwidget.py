@@ -76,16 +76,28 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.init_plotwidget()
 
         # layout widgets
-        self.left_layout = QtWidgets.QGridLayout()
+        self.left_layout = QtWidgets.QVBoxLayout()
         self.right_layout = QtWidgets.QVBoxLayout()
+
+        self.top_left_layout = QtWidgets.QGridLayout()
+        self.bot_left_layout = QtWidgets.QHBoxLayout()
 
         self.layout.addLayout(self.left_layout, 20)
         self.layout.addLayout(self.right_layout, 1)
 
-        self.left_layout.addWidget(self.label, 0, 0)
-        self.left_layout.addWidget(self.sample, 0, 1)
-        self.left_layout.addWidget(self.plot, 1, 0, 1, 2)
-        self.left_layout.addWidget(self.line_lbl, 2, 0, 1, 2)
+        self.left_layout.addLayout(self.top_left_layout)
+        self.left_layout.addLayout(self.bot_left_layout)
+        self.top_left_layout.addWidget(self.label, 0, 0)
+        self.top_left_layout.addWidget(self.sample, 0, 1)
+        self.top_left_layout.addWidget(self.plot, 1, 0, 1, 2)
+        self.bot_left_layout.addWidget(QtWidgets.QLabel('Marker: '))
+        self.bot_left_layout.addWidget(self.chan_lbl)
+        self.bot_left_layout.addWidget(QtWidgets.QLabel(' ('))
+        self.bot_left_layout.addWidget(self.calib_lbl)
+        self.bot_left_layout.addWidget(QtWidgets.QLabel(') = '))
+        self.bot_left_layout.addWidget(self.count_lbl)
+        self.bot_left_layout.addWidget(QtWidgets.QLabel(' Counts'))
+        self.bot_left_layout.addWidget(QtWidgets.QWidget(), 10)
 
         self.right_layout.addWidget(self.data_grp)
         self.right_layout.addWidget(self.time_grp)
@@ -105,39 +117,25 @@ class MCBWidget(QtWidgets.QGroupBox):
     def init_plotwidget(self):
         self.counts, self.roi_mask = self.get_data()
         self.chans = self.chan_max
-        self.rebin = self.counts
-        self.ylim = 1<<int(self.rebin.max()).bit_length()
 
         # create MCB plot widget (with initial histogram and markers)
         self.plot = MCBPlot(self.chans, self.counts, self.roi_mask,\
             enableMenu=False)
 
         # create line info label
-        self.line_x = int(self.plot.line().value())
-        self.line_y = int(self.rebin[self.line_x])
-
-        if self.calibrated:
-            self.line_lbl = QtWidgets.QLabel(\
-                'Marker: {0} ({1:.2f} {2}) = {3} Counts'.format(self.line_x,\
-                self.a*self.line_x**2 + self.b*self.line_x + self.c,\
-                self.units, self.line_y))
-        else:
-            self.line_lbl = QtWidgets.QLabel('Marker: {} = {} Counts'.format(\
-                self.line_x, self.line_y))
+        self.chan_lbl = QtWidgets.QLabel()
+        self.count_lbl = QtWidgets.QLabel()
+        self.calib_lbl = QtWidgets.QLabel()
+        self.chan_lbl.setAlignment(QtCore.Qt.AlignRight)
+        self.count_lbl.setAlignment(QtCore.Qt.AlignRight)
+        self.calib_lbl.setAlignment(QtCore.Qt.AlignRight)
+        self.chan_lbl.setMinimumWidth(40)
+        self.count_lbl.setMinimumWidth(70)
+        self.calib_lbl.setMinimumWidth(80)
+        self.update_marker()
 
         # add response function for line position change
-        def line_change():
-            self.line_x = int(self.plot.line().value())
-            self.line_y = int(self.rebin[self.line_x])
-
-            if self.calibrated:
-                self.line_lbl.setText('Marker: {0} ({1:.2f} {2}) = {3} Counts'\
-                    .format(self.line_x, self.a*self.line_x**2 + \
-                    self.b*self.line_x + self.c, self.units, self.line_y))
-            else:
-                self.line_lbl.setText('Marker: {} = {} Counts'.format(\
-                    self.line_x, self.line_y))
-        self.plot.line().sigPositionChanged.connect(line_change)
+        self.plot.line().sigPositionChanged.connect(self.update_marker)
 
         # add response function for ROI menu actions
         def roi_mark():
@@ -587,13 +585,7 @@ class MCBWidget(QtWidgets.QGroupBox):
             self.settings.setValue('c', self.c)
 
             # update marker info label
-            if self.calibrated:
-                self.line_lbl.setText('Marker: {0} ({1:.2f} {2}) = {3} Counts'\
-                    .format(self.line_x, self.a*self.line_x**2 + \
-                    self.b*self.line_x + self.c, self.units, self.line_y))
-            else:
-                self.line_lbl.setText('Marker: {} = {} Counts'.format(\
-                    self.line_x, self.line_y))
+            self.update_marker()
         def chan1_change():
             chan1_str = self.chan1_txt.text()
             if chan1_str == '':
@@ -703,13 +695,7 @@ class MCBWidget(QtWidgets.QGroupBox):
                 self.settings.setValue('units', self.units)
 
             # update marker info label
-            if self.calibrated:
-                self.line_lbl.setText('Marker: {0} ({1:.2f} {2}) = {3} Counts'\
-                    .format(self.line_x, self.a*self.line_x**2 + \
-                    self.b*self.line_x + self.c, self.units, self.line_y))
-            else:
-                self.line_lbl.setText('Marker: {} = {} Counts'.format(\
-                    self.line_x, self.line_y))
+            self.update_marker()
         self.chan1_txt.textChanged.connect(chan1_change)
         self.chan2_txt.textChanged.connect(chan2_change)
         self.chan3_txt.textChanged.connect(chan3_change)
@@ -734,7 +720,7 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.calib_layout.addWidget(self.units_txt, 4, 1, 1, 2)
         self.calib_grp.setContentLayout(self.calib_layout)
 
-    def update(self):
+    def update_mcb(self):
         self.counts, self.roi_mask = self.get_data()
 
         # update plot
@@ -793,6 +779,21 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.real_lbl.setText(self.real_str)
         self.live_lbl.setText(self.live_str)
         self.dead_lbl.setText(self.dead_str)
+
+        # update line info label
+        self.update_marker()
+
+    def update_marker(self):
+        self.line_x = int(self.plot.line().value())
+        self.line_y = int(self.plot.rebin[self.line_x])
+
+        self.chan_lbl.setText(str(self.line_x))
+        self.count_lbl.setText(str(self.line_y))
+        if self.calibrated:
+            self.calib_lbl.setText('{0:.2f} {1}'.format(self.a*self.line_x**2 +\
+                self.b*self.line_x + self.c, self.units))
+        else:
+            self.calib_lbl.setText('uncalibrated')
 
     def enable_btn(self, btn):
         btn.setEnabled(True)
