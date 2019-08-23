@@ -468,14 +468,6 @@ class MCBWidget(QtWidgets.QGroupBox):
         else:
             self.c = 0
 
-        self.chan1 = 0
-        self.chan2 = 0
-        self.chan3 = 0
-        self.energy1 = 0
-        self.energy2 = 0
-        self.energy3 = 0
-        self.units = 'keV'
-
         # create a group for calibrations
         self.calib_grp = Spoiler(title='Calibration')
         self.calib_layout = QtWidgets.QGridLayout()
@@ -507,22 +499,40 @@ class MCBWidget(QtWidgets.QGroupBox):
 
         # load calib settings
         if self.settings.contains('chan1'):
-            self.chan1_txt.setText(str(self.settings.value('chan1')))
+            self.chan1 = self.settings.value('chan1')
+            self.chan1_txt.setText(str(self.chan1))
+        else:
+            self.chan1 = 0
         if self.settings.contains('chan2'):
-            self.chan2_txt.setText(str(self.settings.value('chan2')))
+            self.chan2 = self.settings.value('chan2')
+            self.chan2_txt.setText(str(self.chan2))
+        else:
+            self.chan2 = 0
         if self.settings.contains('chan3'):
-            self.chan3_txt.setText(str(self.settings.value('chan3')))
+            self.chan3 = self.settings.value('chan3')
+            self.chan3_txt.setText(str(self.chan3))
+        else:
+            self.chan3 = 0
         if self.settings.contains('energy1'):
-            self.energy1_txt.setText('{0:.2f}'.format(self.settings.value(\
-                'energy1')))
+            self.energy1 = self.settings.value('energy1')
+            self.energy1_txt.setText('{0:.2f}'.format(self.energy1))
+        else:
+            self.energy1 = 0
         if self.settings.contains('energy2'):
-            self.energy2_txt.setText('{0:.2f}'.format(self.settings.value(\
-                'energy2')))
+            self.energy2 = self.settings.value('energy2')
+            self.energy2_txt.setText('{0:.2f}'.format(self.energy2))
+        else:
+            self.energy2 = 0
         if self.settings.contains('energy3'):
-            self.energy3_txt.setText('{0:.2f}'.format(self.settings.value(\
-                'energy3')))
+            self.energy3 = self.settings.value('energy3')
+            self.energy3_txt.setText('{0:.2f}'.format(self.energy3))
+        else:
+            self.energy3 = 0
         if self.settings.contains('units'):
+            self.units = self.settings.value('units')
             self.units_txt.setText(self.settings.value('units'))
+        else:
+            self.units = 'keV'
 
         # add response functions to calibration textboxes
         def update_calib():
