@@ -95,6 +95,8 @@ class PySTROWidget(QtWidgets.QWidget):
                 # get sample description
                 if lines[1][:-1] != 'No sample description was entered.':
                     mcb.sample.setText(lines[1][:-1])
+                else:
+                    mcb.sample.setText('')
 
                 # get live/real time
                 live, real = map(int, lines[9].split(' '))
@@ -139,6 +141,27 @@ class PySTROWidget(QtWidgets.QWidget):
                     mcb.lpre_txt.setText('')
                     mcb.rpre_txt.setText('')
 
+                # get calibration
+                c, b, a, units = lines[22+chan_max+nroi].split(' ')
+                a = float(a)
+                b = float(b)
+                c = float(c)
+                units = units[:-1]
+                # load sample points to match opened calibration
+                mcb.chan1_txt.setText('511')
+                mcb.energy1_txt.setText('{0:.3f}'.\
+                    format(a*511**2 + b*511 + c))
+                mcb.chan2_txt.setText('1023')
+                mcb.energy2_txt.setText('{0:.3f}'.\
+                    format(a*1023**2 + b*1023 + c))
+                mcb.chan3_txt.setText('1535')
+                mcb.energy3_txt.setText('{0:.3f}'.\
+                    format(a*1535**2 + b*1535 + c))
+                if units == 'keV':
+                    mcb.units_txt.setText('')
+                else:
+                    mcb.units_txt.setText(units)
+
                 file.close()
 
                 # update line info
@@ -154,77 +177,80 @@ class PySTROWidget(QtWidgets.QWidget):
             mcb = self.mcbs[nmcb]
             file_name, file_type = QtGui.QFileDialog.getSaveFileName(self,\
                 'Save File', filter='ASCII (*.Spe);;All Files (*)')
-            try:
-                file = open(file_name, 'w')
+            # try:
+            file = open(file_name, 'w')
 
-                # write sample description
-                file.write('$SPEC_ID:\n')
-                sample = mcb.sample.text()
-                if sample == '':
-                    file.write('No sample description was entered.\n')
-                else:
-                    file.write(sample + '\n')
-                file.write('$SPEC_REM:\n')
+            # write sample description
+            file.write('$SPEC_ID:\n')
+            sample = mcb.sample.text()
+            if sample == '':
+                file.write('No sample description was entered.\n')
+            else:
+                file.write(sample + '\n')
+            file.write('$SPEC_REM:\n')
 
-                # write MCB ID and name
-                file.write('DET# ' + str(mcb.id) + '\n' +\
-                    'DETDESC# ' + mcb.name + '\n')
+            # write MCB ID and name
+            file.write('DET# ' + str(mcb.id) + '\n' +\
+                'DETDESC# ' + mcb.name + '\n')
 
-                # write start date and time
-                file.write(('AP# Pystro\n' +\
-                    '$DATE_MEA:\n' +\
-                    mcb.start_datetime.strftime('%m/%d/%Y %H:%M:%S') + '\n'))
+            # write start date and time
+            file.write(('AP# Pystro\n' +\
+                '$DATE_MEA:\n' +\
+                mcb.start_datetime.strftime('%m/%d/%Y %H:%M:%S') + '\n'))
 
-                # write live/real time
-                file.write('$MEAS_TIM:\n' +\
-                    str(int(mcb.live / 1000)) + ' ' +\
-                    str(int(mcb.real / 1000)) + '\n')
+            # write live/real time
+            file.write('$MEAS_TIM:\n' +\
+                '{} {}\n'.format(int(mcb.live / 1000),\
+                int(mcb.real / 1000)))
 
-                # write number of channels
-                file.write('$DATA:\n' +\
-                    '0 ' + str(mcb.chan_max-1) + '\n')
+            # write number of channels
+            file.write('$DATA:\n' +\
+                '0 ' + str(mcb.chan_max-1) + '\n')
 
-                # write data
-                for i in range(mcb.chan_max):
-                    file.write(str(int(mcb.counts[i])).rjust(8) + '\n')
+            # write data
+            for i in range(mcb.chan_max):
+                file.write(str(int(mcb.counts[i])).rjust(8) + '\n')
 
-                # write number of ROI's
-                rois = mcb.get_roi()
-                file.write('$ROI:\n' +\
-                    str(len(rois)) + '\n')
+            # write number of ROI's
+            rois = mcb.get_roi()
+            file.write('$ROI:\n' +\
+                '{} \n'.format(len(rois)))
 
-                # write ROI's
-                for roi in rois:
-                    file.write(str(roi[0]) + ' ' + str(roi[0]+roi[1]-1) + '\n')
+            # write ROI's
+            for roi in rois:
+                file.write(str(roi[0]) + ' ' + str(roi[0]+roi[1]-1) + '\n')
 
-                # write presets
-                file.write('$PRESETS:\n')
-                if mcb.lpre == 0 and mcb.rpre == 0:
-                    file.write('None\n' +\
-                    '0\n' +\
-                    '0\n')
-                elif mcb.rpre == 0 or mcb.lpre < mcb.rpre:
-                    file.write('Live Time\n' +\
-                    str(int(mcb.lpre / 1000)) + '\n' +\
-                    str(int(mcb.rpre / 1000)) + '\n')
-                else:
-                    file.write('Real Time\n' +\
-                    str(int(mcb.rpre / 1000)) + '\n' +\
-                    str(int(mcb.lpre / 1000)) + '\n')
+            # write presets
+            file.write('$PRESETS:\n')
+            if mcb.lpre == 0 and mcb.rpre == 0:
+                file.write('None\n' +\
+                '0\n' +\
+                '0\n')
+            elif mcb.rpre == 0 or mcb.lpre > mcb.rpre:
+                file.write('Live Time\n' +\
+                '{}\n'.format(int(mcb.lpre / 1000)) +\
+                '{}\n'.format(int(mcb.rpre / 1000)))
+            else:
+                file.write('Real Time\n' +\
+                '{}\n'.format(int(mcb.rpre / 1000)) +\
+                '{}\n'.format(int(mcb.lpre / 1000)))
 
-                # TODO: currently unsupported
-                file.write('$ENER_FIT:\n' +\
-                    '0.000000 0.000000\n' +\
-                    '$MCA_CAL:\n' +\
-                    '3\n' +\
-                    '0.000000E+000 0.000000E+000 0.000000E+000\n' +\
-                    '$SHAPE_CAL:\n' +\
-                    '3\n' +\
-                    '0.000000E+000 0.000000E+000 0.000000E+000\n')
+            # write calibration
+            file.write('$ENER_FIT:\n' +\
+                '{0:.6f} {1:.6f}\n'.format(mcb.c, mcb.b) +\
+                '$MCA_CAL:\n' +\
+                '3\n' +\
+                '{0:.6E} {1:.6E} {2:.6E} {3}\n'.format(mcb.c, mcb.b, mcb.a,\
+                    mcb.units))
 
-                file.close()
-            except:
-                pass
+            # TODO: currently unsupported
+            file.write('$SHAPE_CAL:\n' +\
+                '3\n' +\
+                '0.000000E+000 0.000000E+000 0.000000E+000\n')
+
+            file.close()
+            # except:
+            #     pass
         self.open_btn.clicked.connect(open_click)
         self.save_btn.clicked.connect(save_click)
 
