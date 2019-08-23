@@ -148,15 +148,31 @@ class PySTROWidget(QtWidgets.QWidget):
                 c = float(c)
                 units = units[:-1]
                 # load sample points to match opened calibration
-                mcb.chan1_txt.setText('511')
-                mcb.energy1_txt.setText('{0:.3f}'.\
-                    format(a*511**2 + b*511 + c))
-                mcb.chan2_txt.setText('1023')
-                mcb.energy2_txt.setText('{0:.3f}'.\
-                    format(a*1023**2 + b*1023 + c))
-                mcb.chan3_txt.setText('1535')
-                mcb.energy3_txt.setText('{0:.3f}'.\
-                    format(a*1535**2 + b*1535 + c))
+                if a == 0:
+                    if c == 0: # only one point is needed
+                        mcb.chan1_txt.setText('1000')
+                        mcb.energy1_txt.setText('{0:.4f}'.format(b*1000))
+                        mcb.chan2_txt.setText('')
+                        mcb.energy2_txt.setText('')
+                        mcb.chan3_txt.setText('')
+                        mcb.energy3_txt.setText('')
+                    else: # only two points are needed
+                        mcb.chan1_txt.setText('1000')
+                        mcb.energy1_txt.setText('{0:.4f}'.format(b*1000 + c))
+                        mcb.chan2_txt.setText('2000')
+                        mcb.energy2_txt.setText('{0:.4f}'.format(b*2000 + c))
+                        mcb.chan3_txt.setText('')
+                        mcb.energy3_txt.setText('')
+                else: # all three points are needed
+                    mcb.chan1_txt.setText('500')
+                    mcb.energy1_txt.setText('{0:.4f}'.format(a*500**2 + b*500\
+                        + c))
+                    mcb.chan2_txt.setText('1000')
+                    mcb.energy2_txt.setText('{0:.4f}'.format(a*1000**2 + b*1000\
+                        + c))
+                    mcb.chan3_txt.setText('1500')
+                    mcb.energy3_txt.setText('{0:.4f}'.format(a*1500**2 + b*1500\
+                        + c))
                 if units == 'keV':
                     mcb.units_txt.setText('')
                 else:
