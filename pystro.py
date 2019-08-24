@@ -11,7 +11,7 @@ app.setStyle('fusion')
 
 pystrowidget = PySTROWidget()
 pystrowidget.setWindowTitle('Pystro')
-# pystrowidget.showMaximized()
-pystrowidget.show()
+pystrowidget.showMaximized()
+# pystrowidget.show()
 
 app.exec_()

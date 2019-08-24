@@ -79,25 +79,37 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.left_layout = QtWidgets.QVBoxLayout()
         self.right_layout = QtWidgets.QVBoxLayout()
 
-        self.top_left_layout = QtWidgets.QGridLayout()
-        self.bot_left_layout = QtWidgets.QHBoxLayout()
+        self.plot_layout = QtWidgets.QGridLayout()
+        self.marker_layout = QtWidgets.QHBoxLayout()
+        self.fit_layout = QtWidgets.QHBoxLayout()
 
         self.layout.addLayout(self.left_layout, 20)
         self.layout.addLayout(self.right_layout, 1)
 
-        self.left_layout.addLayout(self.top_left_layout)
-        self.left_layout.addLayout(self.bot_left_layout)
-        self.top_left_layout.addWidget(self.label, 0, 0)
-        self.top_left_layout.addWidget(self.sample, 0, 1)
-        self.top_left_layout.addWidget(self.plot, 1, 0, 1, 2)
-        self.bot_left_layout.addWidget(QtWidgets.QLabel('Marker: '))
-        self.bot_left_layout.addWidget(self.chan_lbl)
-        self.bot_left_layout.addWidget(QtWidgets.QLabel(' ('))
-        self.bot_left_layout.addWidget(self.calib_lbl)
-        self.bot_left_layout.addWidget(QtWidgets.QLabel(') = '))
-        self.bot_left_layout.addWidget(self.count_lbl)
-        self.bot_left_layout.addWidget(QtWidgets.QLabel(' Counts'))
-        self.bot_left_layout.addWidget(QtWidgets.QWidget(), 10)
+        self.left_layout.addLayout(self.plot_layout)
+        self.left_layout.addLayout(self.marker_layout)
+        self.left_layout.addLayout(self.fit_layout)
+        self.plot_layout.addWidget(self.label, 0, 0)
+        self.plot_layout.addWidget(self.sample, 0, 1)
+        self.plot_layout.addWidget(self.plot, 1, 0, 1, 2)
+        self.marker_layout.addWidget(QtWidgets.QLabel('Marker: '))
+        self.marker_layout.addWidget(self.chan_lbl)
+        self.marker_layout.addWidget(QtWidgets.QLabel(' ('))
+        self.marker_layout.addWidget(self.calib_lbl)
+        self.marker_layout.addWidget(QtWidgets.QLabel(') = '))
+        self.marker_layout.addWidget(self.count_lbl)
+        self.marker_layout.addWidget(QtWidgets.QLabel(' Counts'))
+        self.marker_layout.addWidget(QtWidgets.QWidget(), 10)
+        self.fit_layout.addWidget(QtWidgets.QLabel('ROI Fit:  μ = '))
+        self.fit_layout.addWidget(self.mu_chan_lbl)
+        self.fit_layout.addWidget(QtWidgets.QLabel(' ('))
+        self.fit_layout.addWidget(self.mu_energy_lbl)
+        self.fit_layout.addWidget(QtWidgets.QLabel('),  σ = '))
+        self.fit_layout.addWidget(self.sig_chan_lbl)
+        self.fit_layout.addWidget(QtWidgets.QLabel(' ('))
+        self.fit_layout.addWidget(self.sig_energy_lbl)
+        self.fit_layout.addWidget(QtWidgets.QLabel(')'))
+        self.fit_layout.addWidget(QtWidgets.QWidget(), 10)
 
         self.right_layout.addWidget(self.data_grp)
         self.right_layout.addWidget(self.time_grp)
@@ -122,7 +134,7 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.plot = MCBPlot(self.chans, self.counts, self.roi_mask,\
             enableMenu=False)
 
-        # create line info label
+        # create line info labels
         self.chan_lbl = QtWidgets.QLabel()
         self.count_lbl = QtWidgets.QLabel()
         self.calib_lbl = QtWidgets.QLabel()
@@ -132,6 +144,22 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.chan_lbl.setMinimumWidth(40)
         self.count_lbl.setMinimumWidth(70)
         self.calib_lbl.setMinimumWidth(80)
+
+        # create ROI fit info labels
+        self.mu_chan_lbl = QtWidgets.QLabel()
+        self.mu_energy_lbl = QtWidgets.QLabel()
+        self.sig_chan_lbl = QtWidgets.QLabel()
+        self.sig_energy_lbl = QtWidgets.QLabel()
+        self.mu_chan_lbl.setAlignment(QtCore.Qt.AlignRight)
+        self.mu_energy_lbl.setAlignment(QtCore.Qt.AlignRight)
+        self.sig_chan_lbl.setAlignment(QtCore.Qt.AlignRight)
+        self.sig_energy_lbl.setAlignment(QtCore.Qt.AlignRight)
+        self.mu_chan_lbl.setMinimumWidth(100)
+        self.mu_energy_lbl.setMinimumWidth(130)
+        self.sig_chan_lbl.setMinimumWidth(100)
+        self.sig_energy_lbl.setMinimumWidth(130)
+
+        # update marker and ROI fit
         self.update_marker()
 
         # add response function for line position change
@@ -410,12 +438,16 @@ class MCBWidget(QtWidgets.QGroupBox):
             self.mode = 'Log'
             self.disable_btn(self.log_btn)
             self.enable_btn(self.auto_btn)
-            self.plot.update(self.chans, self.counts, self.roi_mask, self.mode)
+            self.plot.update(self.chans, self.counts, self.roi_mask, self.mode)   
+            self.popts = self.plot.fit_roi(self.get_roi(), self.calibrated,\
+                self.a, self.b, self.c)
         def auto_click():
             self.mode = 'Auto'
             self.enable_btn(self.log_btn)
             self.disable_btn(self.auto_btn)
             self.plot.update(self.chans, self.counts, self.roi_mask, self.mode)
+            self.popts = self.plot.fit_roi(self.get_roi(), self.calibrated,\
+                self.a, self.b, self.c)
         self.log_btn.clicked.connect(log_click)
         self.auto_btn.clicked.connect(auto_click)
 
@@ -437,6 +469,8 @@ class MCBWidget(QtWidgets.QGroupBox):
         def chan_change():
             self.chans = int(self.chan_max / (1<<self.chan_box.currentIndex()))
             self.plot.update(self.chans, self.counts, self.roi_mask, self.mode)
+            self.popts = self.plot.fit_roi(self.get_roi(), self.calibrated,\
+                self.a, self.b, self.c)
         self.chan_box.currentIndexChanged.connect(chan_change)
 
         # layout plot widgets
@@ -726,6 +760,10 @@ class MCBWidget(QtWidgets.QGroupBox):
         # update plot
         self.plot.update(self.chans, self.counts, self.roi_mask, self.mode)
 
+        # fit ROI's
+        self.popts = self.plot.fit_roi(self.get_roi(), self.calibrated, self.a,\
+            self.b, self.c)
+
         # enable/disable data buttons and preset boxes
         old_state = self.active
         self.active = self.is_active()
@@ -784,24 +822,55 @@ class MCBWidget(QtWidgets.QGroupBox):
         self.update_marker()
 
     def update_marker(self):
+        # get marker line channel and counts
         self.line_x = int(self.plot.line().value())
         self.line_y = int(self.plot.rebin[self.line_x])
 
+        # set channel and counts label
         self.chan_lbl.setText(str(self.line_x))
         self.count_lbl.setText(str(self.line_y))
+
+        # if calibrated, set energy label
         if self.calibrated:
             self.calib_lbl.setText('{0:.2f} {1}'.format(self.a*self.line_x**2 +\
                 self.b*self.line_x + self.c, self.units))
         else:
             self.calib_lbl.setText('uncalibrated')
 
-    def enable_btn(self, btn):
-        btn.setEnabled(True)
-        btn.setStyleSheet('background-color: {0}'.format(self.neutral))
+        # check if marker line is in an ROI
+        chan = self.line_x * self.chan_max / self.chans
+        nroi = self.get_nroi(chan)
 
-    def disable_btn(self, btn):
-        btn.setEnabled(False)
-        btn.setStyleSheet('background-color: {0}'.format(self.gray))
+        # if in an ROI, set fit labels
+        if nroi is not None:
+            popt = self.popts[nroi]
+            try:
+                self.mu_chan_lbl.setText('{0:.2f} ± {1:.2f}'\
+                    .format(popt['mu_chan_opt'], popt['mu_chan_err']))
+                self.sig_chan_lbl.setText('{0:.2f} ± {1:.2f}'\
+                    .format(popt['sig_chan_opt'], popt['sig_chan_err']))
+            except:
+                self.mu_chan_lbl.setText('could not fit')
+                self.sig_chan_lbl.setText('could not fit')
+            if self.calibrated:
+                try:
+                    self.mu_energy_lbl.setText('{0:.2f} ± {1:.2f} {2}'\
+                        .format(popt['mu_energy_opt'], popt['mu_energy_err'],\
+                        self.units))
+                    self.sig_energy_lbl.setText('{0:.2f} ± {1:.2f} {2}'\
+                        .format(popt['sig_energy_opt'], popt['sig_energy_err'],\
+                        self.units))
+                except:
+                    self.mu_energy_lbl.setText('could not fit')
+                    self.sig_energy_lbl.setText('could not fit')
+            else:
+                self.mu_energy_lbl.setText('uncalibrated')
+                self.sig_energy_lbl.setText('uncalibrated')
+        else:
+            self.mu_chan_lbl.setText('')
+            self.mu_energy_lbl.setText('')
+            self.sig_chan_lbl.setText('')
+            self.sig_energy_lbl.setText('')
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Left:
@@ -814,6 +883,23 @@ class MCBWidget(QtWidgets.QGroupBox):
             if new_pos < self.chans:
                 self.plot.line().setValue(new_pos)
             self.plot.box().hide()
+
+    def enable_btn(self, btn):
+        btn.setEnabled(True)
+        btn.setStyleSheet('background-color: {0}'.format(self.neutral))
+
+    def disable_btn(self, btn):
+        btn.setEnabled(False)
+        btn.setStyleSheet('background-color: {0}'.format(self.gray))
+
+    def get_nroi(self, chan):
+        rois = self.get_roi()
+        count = 0
+        for i in range(len(rois)):
+            start_chan, num_chans = rois[i]
+            if chan >= start_chan and chan < start_chan + num_chans:
+                return i
+        return None
 
     def is_active(self):
         return self.driver.is_active(self.hdet)

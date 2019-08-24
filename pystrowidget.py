@@ -40,7 +40,7 @@ class PySTROWidget(QtWidgets.QWidget):
         # create QTimers to do updates
         self.timer_mcb = QtCore.QTimer()
         self.timer_mcb.timeout.connect(self.update_mcb)
-        self.timer_mcb.start(200)
+        self.timer_mcb.start(250)
 
         self.timer_self = QtCore.QTimer()
         self.timer_self.timeout.connect(self.update_self)
